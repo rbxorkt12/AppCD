@@ -8,25 +8,25 @@ import (
 
 //argo Rollout 기능은 좀더 고민해봐야 할것 같다.
 
-type appoconfig struct {
+type Appoconfig struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	Orders []order `json:"orders"`
+	Orders []Order `json:"orders"`
 }
 
-type order struct {
+type Order struct {
 	Destination string `json:"destination"`
-	Charts []chart `json:"charts"`
+	Charts []Chart `json:"charts"`
 }
 
-type chart struct {
+type Chart struct {
 	Repository string `json:"repository"`
 	Path 	string `json:"path"`
 	Branch	string `json:"branch"`
 }
 
-func GetConfig(path string) (*appoconfig,error) {
-	config := &appoconfig{}
+func GetConfig(path string) (*Appoconfig,error) {
+	config := &Appoconfig{}
 	viper.SetConfigName("Appoconfig")
 	viper.AddConfigPath(".")
 	if path != "" {
