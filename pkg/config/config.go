@@ -22,7 +22,7 @@ type Order struct {
 type Chart struct {
 	Repository string `json:"repository"`
 	Path 	string `json:"path"`
-	Branch	string `json:"branch"`
+	Revision	string `json:"revision"`
 }
 
 func GetConfig(path string) (*Appoconfig,error) {

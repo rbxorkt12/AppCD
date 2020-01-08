@@ -17,11 +17,11 @@ func Gitupdate(url string,directory string)error{
 		return nil
 	}
 	log.Println("Repo is has to be update")
-	_, err = gitclone(url, directory)
+	_, err = gitclone(url, "new")
 	if (err!=nil){
 		return err
 	}
-	log.Println("Repo is successfully update")
+	log.Println("Download new appoconfig commit")
 	return nil
 }
 
@@ -42,12 +42,8 @@ func Isrepotobeupdate(url string,directory string)(bool,error){
 			}
 		}
 		log.Println("There is some change in remote repository")
-		err=os.RemoveAll(directory)
-		if (err!=nil){return false,err}
-		_,err=gitclone(url,directory)
-		log.Println("remove origin folder and reupdate repository")
-		if (err!=nil){return false,err}
-		return false,nil
+		return true,nil
+
 	}
 }
 
