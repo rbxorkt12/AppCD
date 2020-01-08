@@ -1,0 +1,20 @@
+username: admin
+password: password
+orders:
+  - destination: cluster1
+    charts:
+      - repository: https://github.com/rbxorkt12/cicdexample.git
+        path: chart1
+        branch: chart1_branch
+      - repository: https://github.com/rbxorkt12/cicdexample.git
+        path: chart2
+        branch: chart2_branch
+
+  - destination: cluster2
+    charts:
+      - repository: https://github.com/rbxorkt12/cicdexample.git
+        path: chart1
+        branch: chart1_branch
+      - repository: https://github.com/rbxorkt12/cicdexample.git
+        path: chart3
+        branch: chart3_branch
