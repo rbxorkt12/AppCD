@@ -1,0 +1,2 @@
+# gopkg.in/src-d/go-git.v4 v4.13.1
+gopkg.in/src-d/go-git.v4/_examples
