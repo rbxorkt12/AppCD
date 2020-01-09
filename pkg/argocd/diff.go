@@ -1,4 +1,5 @@
-package gitdiff
+package argocd
+
 
 import(
 	"github.com/rbxorkt12/applink/pkg/config"

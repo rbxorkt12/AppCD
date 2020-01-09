@@ -23,6 +23,7 @@ type Chart struct {
 	Repository string `json:"repository"`
 	Path 	string `json:"path"`
 	Revision	string `json:"revision"`
+	Namespace string `json:"namespace"`
 }
 
 func GetConfig(path string) (*Appoconfig,error) {

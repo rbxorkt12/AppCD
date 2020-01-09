@@ -13,15 +13,16 @@ func Gitupdate(url string,directory string)error{
 	flag,err:=Isrepotobeupdate(url,directory)
 	if(err!=nil){return err}
 	if(flag==false){
-		log.Println("Repo is not to be update")
+		log.Println("Repo is not changed")
 		return nil
 	}
-	log.Println("Repo is has to be update")
-	_, err = gitclone(url, "new")
+	log.Println("Repo is has to be updated")
+	os.RemoveAll(directory)
+	_, err = gitclone(url, directory)
 	if (err!=nil){
 		return err
 	}
-	log.Println("Download new appoconfig commit")
+	log.Println("Successfully change commit")
 	return nil
 }
 
@@ -45,14 +46,6 @@ func Isrepotobeupdate(url string,directory string)(bool,error){
 		return true,nil
 
 	}
-}
-
-func errorfunc(err error) error{
-	if (err!=nil){
-		log.Fatalln(err)
-		return err
-	}
-	return nil
 }
 
 func gitclone(url string, directory string) (*object.Commit,error){
