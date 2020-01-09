@@ -9,21 +9,24 @@ import (
 )
 
 
-func Gitupdate(url string,directory string)error{
+func Gitupdate(url string,directory string)(bool,error){
 	flag,err:=Isrepotobeupdate(url,directory)
 	if(err!=nil){return err}
 	if(flag==false){
 		log.Println("Repo is not changed")
-		return nil
+		return false,nil
 	}
 	log.Println("Repo is has to be updated")
-	os.RemoveAll(directory)
+	err =os.RemoveAll(directory)
+	if (err!=nil){
+		return false,err
+	}
 	_, err = gitclone(url, directory)
 	if (err!=nil){
-		return err
+		return false,err
 	}
 	log.Println("Successfully change commit")
-	return nil
+	return true,nil
 }
 
 func Isrepotobeupdate(url string,directory string)(bool,error){
