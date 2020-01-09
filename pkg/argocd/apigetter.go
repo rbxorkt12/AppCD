@@ -1,6 +1,7 @@
 package argocd
 
 import (
+	"strings"
 	"flag"
 	"k8s.io/client-go/rest"
 	"os"
@@ -36,7 +37,9 @@ func ArgocdCallurl() (string,error){
 		log.Fatalln(err)
 		return "",err
 	}
-	return fmt.Sprintf("%s:%s",clusterip,argocdport),nil
+	url:= fmt.Sprintf("%s:%s",clusterip,argocdport)
+	log.Printf("Argocd server url is %s",url)
+	return url,nil
 }
 
 func homeDir() string {
@@ -87,7 +90,7 @@ func ArgocdServerPortgetter() (string,error){
 	if err!=nil{
 		return "",err
 	}
-	opts:=metav1.ListOptions{LabelSelector:"name=argocd-server"}
+	opts:=metav1.ListOptions{LabelSelector:"app.kubernetes.io/component=server"}
 	svcs,err:=con.CoreV1().Services("argocd").List(opts)
 	if err!=nil {
 		return "",err
@@ -95,7 +98,8 @@ func ArgocdServerPortgetter() (string,error){
 	for _,svc := range svcs.Items{
 		for _,port := range svc.Spec.Ports{
 			if port.Name == "https"{
-				return string(port.NodePort),nil
+				portnum := fmt.Sprintf("%d",port.NodePort)
+				return portnum,nil
 			}
 		}
 
@@ -117,7 +121,6 @@ func ClusterConfig() (*rest.Config,error){
 			flag.Parse()
 		}
 
-		log.Println("Running out of Kubernetes cluster")
 		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {
 			panic(err.Error())
@@ -129,5 +132,7 @@ func ClusterConfig() (*rest.Config,error){
 
 func K8sclusterIp() (string,error){
 	config,err:=ClusterConfig()
-	return config.Host,err
+	strs:=strings.Split(config.Host,":")
+	url:=fmt.Sprintf("%s:%s",strs[0],strs[1])
+	return url,err
 }
