@@ -20,6 +20,8 @@ const (
 	Giturl= "https://github.com/example.git"
 	Dir = "./example"
 	SettingDuration time.Duration = time.Second*100
+	Repoid string = "admin"
+	Password string = "password"
 )
 
 func main() {
@@ -42,7 +44,7 @@ func main() {
 		flag,err:=gitchecker.Isrepotobeupdate(Giturl,Dir)
 		if(err!=nil){
 			if(err.Error()=="NOFILEEXIST"){
-				gitchecker.Gitclone(Giturl,Dir)
+				gitchecker.AuthGitclone(Giturl,Dir,Repoid,Password)
 			} else {
 			log.Fatalln(err)
 			os.Exit(238) //내맘임
@@ -52,7 +54,7 @@ func main() {
 			continue
 		}
 		// repo가 업데이트 된 상황
-		err = gitchecker.Gitupdate(Giturl,Dir)
+		err = gitchecker.Gitupdate(Giturl,Dir,Repoid,Password)
 		if err!=nil {
 			log.Fatalln(err)
 			os.Exit(238)

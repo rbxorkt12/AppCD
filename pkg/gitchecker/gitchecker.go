@@ -2,20 +2,20 @@ package gitchecker
 
 import (
 	"errors"
+	"fmt"
 	git "gopkg.in/src-d/go-git.v4"
-	. "gopkg.in/src-d/go-git.v4/_examples"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"log"
 	"os"
 )
 
 //현재는 레포 업데이트 알고리즘이 지우고 다시 받는 알고리즘임.
-func Gitupdate(url string,directory string)(error){
+func Gitupdate(url string,directory string,id string,password string)(error){
 	err :=os.RemoveAll(directory)
 	if (err!=nil){
 		return err
 	}
-	_, err = Gitclone(url, directory)
+	_, err = AuthGitclone(url, directory,id,password)
 	if (err!=nil){
 		return err
 	}
@@ -45,18 +45,22 @@ func Isrepotobeupdate(url string,directory string)(bool,error){
 	}
 }
 
-func Gitclone(url string, directory string) (*object.Commit,error){
+func AuthGitclone(url string, directory string,id string,password string) (*object.Commit,error){
 	log.Printf("git clone %s %s --recursive", url, directory)
+	authurl:= fmt.Sprintf("%s:%s@%s",id,password,url)
 	r, err := git.PlainClone(directory, false, &git.CloneOptions{
-		URL:               url,
+		URL:               authurl,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+
 	})
-	CheckIfError(err)
 	ref, err := r.Head()
-	CheckIfError(err)
-	// ... retrieving the commit object
+	if err!=nil {
+		return nil,err
+	}
 	commit, err := r.CommitObject(ref.Hash())
-	CheckIfError(err)
+	if err!=nil {
+		return nil,err
+	}
 	return commit,err
 }
 
