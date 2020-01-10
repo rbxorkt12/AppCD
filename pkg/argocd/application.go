@@ -38,7 +38,7 @@ func GetappsinCluster( cluster ArgoCDinfo ) ([]structtype.Item,error){
 	//data reading from response
 	bytes, _ := ioutil.ReadAll(resp.Body)
 	var dat *structtype.Reciver
-	if err := json.Unmarshal(bytes, dat); err != nil {
+	if err := json.Unmarshal(bytes, &dat); err != nil {
 		return nil,err// handle err
 	}
 	return dat.Items,nil
