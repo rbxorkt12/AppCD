@@ -30,6 +30,7 @@ func main() {
 	e.Use(middleware.Recover())
 	optionhanlder:=&handler.Optionhandler{Change:handler.Wait}
 	optionhanlder.Sethandler(e.Group("/api"))
+	e.Logger.Debug(e.Start(":/8080"))
 	//handler setting
 
 	argoinfo,err:=argocd.ArgocdSet()
