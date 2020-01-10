@@ -21,7 +21,7 @@ import (
 
 var kubeconfig *string
 
-type argoCDinfo struct {
+type ArgoCDinfo struct {
 	username string
 	password string
 	iport string
@@ -31,8 +31,10 @@ type argoCDinfo struct {
 //id,password 짜는 알고리즘
 
 
-func ArgocdSet() (*argoCDinfo,error){
-	var argoinfo *argoCDinfo
+func ArgocdSet() (*ArgoCDinfo,error){
+	var argoinfo *ArgoCDinfo
+	argoinfo.password="qwe123"
+	argoinfo.username="admin"
 	url,err:=ArgocdCallurl()
 	if err!=nil {
 		panic(err)
@@ -44,7 +46,7 @@ func ArgocdSet() (*argoCDinfo,error){
 
 }
 
-func gettoken(cluster *argoCDinfo) {
+func gettoken(cluster *ArgoCDinfo) {
 	//인증서 없이 접근
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

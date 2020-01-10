@@ -16,7 +16,7 @@ func GetappsinConfig ( config *config.Appoconfig) []structtype.Item{
 
 }
 
-func GetappsinCluster( cluster argoCDinfo ) ([]structtype.Item,error){
+func GetappsinCluster( cluster ArgoCDinfo ) ([]structtype.Item,error){
 	//appname := "appsync"
 	url:=fmt.Sprintf("http://%s/api/v1/applications", cluster.iport) //API calling for get application list, not completed
 	tr := &http.Transport{

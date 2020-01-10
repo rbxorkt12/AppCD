@@ -1,7 +1,9 @@
 package argocd
 
-
-func Appdiff(before []Item,after []Item)(create []Item,delete []Item,update []Item){
+import (
+	structtype "github.com/rbxorkt12/applink/pkg/type"
+)
+func Appdiff(before []structtype.Item,after []structtype.Item)(create []structtype.Item,delete []structtype.Item,update []structtype.Item){
 	var flag int
 	for _,app := range before{
 		flag = 1
