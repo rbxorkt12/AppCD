@@ -4,6 +4,8 @@ go 1.13
 
 require (
 	github.com/imdario/mergo v0.3.8 // indirect
+	github.com/labstack/echo v3.3.10+incompatible
+	github.com/labstack/gommon v0.3.0 // indirect
 	github.com/spf13/viper v1.6.1
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	k8s.io/apimachinery v0.0.0-20190817020851-f2f3a405f61d

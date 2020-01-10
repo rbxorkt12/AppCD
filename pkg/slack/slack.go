@@ -8,6 +8,9 @@ import (
 	"errors"
 )
 
+
+//예쁜 형태로 수정부탁드립니다.
+
 type SlackRequestBody struct {
 	Text string `json:"text"`
 }

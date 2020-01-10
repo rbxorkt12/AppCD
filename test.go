@@ -14,14 +14,19 @@ func main(){
 	configitem,err:=argocd.GetappsinCluster(*argoinfo)
 	if err!= nil {panic(err)}
 	clusteritem :=argocd.GetappsinConfig(config)
-	fmt.Println("this is clusteritem")
-	for _,item1:= range clusteritem{
+	create,delete,update:=argocd.Appdiff(configitem,clusteritem)
+	fmt.Println("this is create")
+	for item1 := range create {
 		fmt.Println(item1)
 	}
-	fmt.Println("this is configitem")
-	for _,item2:= range configitem{
+	for item2 := range delete {
 		fmt.Println(item2)
 	}
+	fmt.Println("this is update")
+	for item3 := range update {
+		fmt.Println(item3)
+	}
+
 
 
 }

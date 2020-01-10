@@ -1,6 +1,7 @@
 package gitchecker
 
 import (
+	"errors"
 	git "gopkg.in/src-d/go-git.v4"
 	. "gopkg.in/src-d/go-git.v4/_examples"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -14,7 +15,7 @@ func Gitupdate(url string,directory string)(error){
 	if (err!=nil){
 		return err
 	}
-	_, err = gitclone(url, directory)
+	_, err = Gitclone(url, directory)
 	if (err!=nil){
 		return err
 	}
@@ -25,7 +26,7 @@ func Gitupdate(url string,directory string)(error){
 func Isrepotobeupdate(url string,directory string)(bool,error){
 	if!(fileExists(directory)){
 		log.Println("There is no file in directory")
-		return true,nil
+		return true,errors.New("NOFILEEXIST")
 	} else{
 		r,err:=git.PlainOpen(directory)
 		if (err!=nil){return false,err}
@@ -44,7 +45,7 @@ func Isrepotobeupdate(url string,directory string)(bool,error){
 	}
 }
 
-func gitclone(url string, directory string) (*object.Commit,error){
+func Gitclone(url string, directory string) (*object.Commit,error){
 	log.Printf("git clone %s %s --recursive", url, directory)
 	r, err := git.PlainClone(directory, false, &git.CloneOptions{
 		URL:               url,

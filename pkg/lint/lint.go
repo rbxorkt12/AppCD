@@ -12,6 +12,13 @@ import (
 
 //각종 lint function들은 함수로 만들고 이 함수안에 저장해주세요.
 func Configvalid(directory string) (bool,error){
+	flag,err:=Appoconfigexist(directory)
+	if err !=nil {
+		return false,err
+	}
+	if flag!=false{
+		return false,nil
+	}
 	appoconfig,err:=config.GetConfig(directory)
 	if (err != nil){
 		return false,err
