@@ -32,7 +32,7 @@ type ArgoCDinfo struct {
 
 
 func ArgocdSet() (*ArgoCDinfo,error){
-	var argoinfo *ArgoCDinfo
+	var argoinfo ArgoCDinfo
 	argoinfo.password="qwe123"
 	argoinfo.username="admin"
 	url,err:=ArgocdCallurl()
@@ -41,8 +41,8 @@ func ArgocdSet() (*ArgoCDinfo,error){
 		return nil,err
 	}
 	argoinfo.iport = url
-	gettoken(argoinfo)
-	return argoinfo,nil
+	gettoken(&argoinfo)
+	return &argoinfo,nil
 
 }
 
@@ -183,6 +183,7 @@ func ClusterConfig() (*rest.Config,error){
 func K8sclusterIp() (string,error){
 	config,err:=ClusterConfig()
 	strs:=strings.Split(config.Host,":")
-	url:=fmt.Sprintf("%s:%s",strs[0],strs[1])
+	result:=strings.TrimPrefix(strs[1],"//")
+	url:=fmt.Sprintf("%s",result)
 	return url,err
 }
