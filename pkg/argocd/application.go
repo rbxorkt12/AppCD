@@ -5,51 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/rbxorkt12/applink/pkg/config"
-	"go/ast"
-	"html/template"
+	structtype "github.com/rbxorkt12/applink/pkg/type"
 	"io/ioutil"
-	"log"
 	"net/http"
 )
 
 
-type Reciver struct{
-	Items []Item `json:"items"`
-}
-
-type Item struct {
-	Meta Metadata `json:"metadata"`
-	Spec Spec	`json"spec"`
-}
-
-type Metadata struct {
-	Name string `json:"name"`
-}
-
-type Spec struct {
-	Source Source `json:"source"`
-	Dest Destination `json:"destination"`
-}
-
-type Source struct {
-	Url string `json:"repoURL"`
-	Path string `json:"path"`
-	Revision string `json:"targetRevision"`
-}
-
-type Destination struct {
-	Server	string `json:"server"`
-	Namespace string `json:"namespace"`
-}
-
-//diff 많이 느릴겁니다. 알고리즘 고쳐주세용
-
-
-func GetappsinConfig ( config *config.Appoconfig) []Item{
+func GetappsinConfig ( config *config.Appoconfig) []structtype.Item{
 	return config.ConvertApp()
+
 }
 
-func GetappsinCluster( cluster argoCDinfo ) ([]Item,error){
+func GetappsinCluster( cluster argoCDinfo ) ([]structtype.Item,error){
 	//appname := "appsync"
 	url:=fmt.Sprintf("http://%s/api/v1/applications", cluster.iport) //API calling for get application list, not completed
 	tr := &http.Transport{
@@ -70,7 +37,7 @@ func GetappsinCluster( cluster argoCDinfo ) ([]Item,error){
 	defer resp.Body.Close()
 	//data reading from response
 	bytes, _ := ioutil.ReadAll(resp.Body)
-	var dat *Reciver
+	var dat *structtype.Reciver
 	if err := json.Unmarshal(bytes, dat); err != nil {
 		return nil,err// handle err
 	}

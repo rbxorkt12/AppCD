@@ -1,3 +1,5 @@
 /vendor
 /.idea
 applink
+test
+test.go

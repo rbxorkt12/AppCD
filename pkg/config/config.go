@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	structtype "github.com/rbxorkt12/applink/pkg/type"
 	"github.com/spf13/viper"
-	"github.com/rbxorkt12/applink/pkg/argocd"
+
+
 )
 
 //argo Rollout 기능은 좀더 고민해봐야 할것 같다.
@@ -42,11 +44,11 @@ func GetConfig(path string) (*Appoconfig,error) {
 	return config,nil
 }
 
-func (app *Appoconfig)ConvertApp()([]argocd.Item){
-	var list []argocd.Item
+func (app *Appoconfig)ConvertApp()([]structtype.Item){
+	var list []structtype.Item
 	for _,order:= range app.Orders{
 		for _,chart:= range order.Charts{
-			item:=&argocd.Item{}
+			item:=&structtype.Item{}
 			item.Spec.Dest.Namespace=chart.Namespace
 			item.Spec.Dest.Server=order.Destination
 			item.Spec.Source.Revision=chart.Revision
@@ -57,4 +59,5 @@ func (app *Appoconfig)ConvertApp()([]argocd.Item){
 		}
 	}
 	return list
+
 }

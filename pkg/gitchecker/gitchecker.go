@@ -8,25 +8,18 @@ import (
 	"os"
 )
 
-
-func Gitupdate(url string,directory string)(bool,error){
-	flag,err:=Isrepotobeupdate(url,directory)
-	if(err!=nil){return err}
-	if(flag==false){
-		log.Println("Repo is not changed")
-		return false,nil
-	}
-	log.Println("Repo is has to be updated")
-	err =os.RemoveAll(directory)
+//현재는 레포 업데이트 알고리즘이 지우고 다시 받는 알고리즘임.
+func Gitupdate(url string,directory string)(error){
+	err :=os.RemoveAll(directory)
 	if (err!=nil){
-		return false,err
+		return err
 	}
 	_, err = gitclone(url, directory)
 	if (err!=nil){
-		return false,err
+		return err
 	}
 	log.Println("Successfully change commit")
-	return true,nil
+	return nil
 }
 
 func Isrepotobeupdate(url string,directory string)(bool,error){
