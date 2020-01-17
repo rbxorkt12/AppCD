@@ -1,0 +1,15 @@
+
+orders:
+  - destination: https://kubernetes.default.svc
+    charts:
+      - repository: https://github.com/helm/charts.git
+        revision: master
+        subpath:
+          - path: stable/chaoskube
+            namespace: default
+            chartvalue: values.yaml
+            chartdeploystrategy: Canary
+          - path: stable/chartmuseum
+            namespace: default
+            chartvalue: values.yaml
+            chartdeploystrategy: Canary

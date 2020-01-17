@@ -1,0 +1,15 @@
+
+orders:
+  - destination: https://kubernetes.default.svc
+    charts:
+      - repository: https://github.com/helm/charts.git
+        revision: master
+        subpath:
+          - path: incubator/zookeeper
+            namespace: default
+            chartvalue: values.yaml
+            chartdeploystrategy: Canary
+          - path: incubator/mysqlha
+            namespace: default
+            chartvalue: values.yaml
+            chartdeploystrategy: Canary
