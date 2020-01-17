@@ -16,6 +16,8 @@ type Metadata struct {
 type Spec struct {
 	Source Source `json:"source"`
 	Dest Destination `json:"destination"`
+	Project string `json:"project"`
+	Sync *string `json:"syncPolicy"` //고쳐야됨.
 }
 
 type Source struct {

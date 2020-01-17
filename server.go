@@ -17,11 +17,11 @@ import (
 
 // Const를 나중에 다른방법으로 넣을수있게 바꿔주세요.
 const (
-	Giturl= "https://github.com/example.git"
+	Giturl= "https://github.com/rbxorkt12/appcd_example.git"
 	Dir = "./example"
 	SettingDuration time.Duration = time.Second*100
-	Repoid string = "admin"
-	Password string = "password"
+	Repoid string = ""
+	Password string = ""
 )
 
 func main() {
@@ -32,6 +32,7 @@ func main() {
 	optionhanlder.Sethandler(e.Group("/api"))
 	e.Logger.Debug(e.Start(":/8080"))
 	//handler setting
+
 
 	argoinfo,err:=argocd.ArgocdSet()
 	if err!=nil {
@@ -45,7 +46,11 @@ func main() {
 		flag,err:=gitchecker.Isrepotobeupdate(Giturl,Dir)
 		if(err!=nil){
 			if(err.Error()=="NOFILEEXIST"){
-				gitchecker.AuthGitclone(Giturl,Dir,Repoid,Password)
+				_,err:=gitchecker.AuthGitclone(Giturl,Dir,Repoid,Password)
+				if err!=nil {
+					log.Fatalln(err)
+					os.Exit(555)
+				}
 			} else {
 			log.Fatalln(err)
 			os.Exit(238) //내맘임
@@ -91,19 +96,19 @@ func main() {
 				var wg sync.WaitGroup
 				wg.Add(3)
 				go func() {
-					argocd.Createcall(create)
+					argocd.Createcall(create,*argoinfo)
 					defer wg.Done()
 				}()
 				go func() {
-					argocd.Deletecall(delete)
+					argocd.Deletecall(delete,*argoinfo)
 					defer wg.Done()
 				}()
 				go func() {
-					argocd.Updatecall(update)
+					argocd.Syncall(update,*argoinfo)
 					defer wg.Done()
 				}()
 				wg.Wait()
-				argocd.Syncall()
+				argocd.Syncall(applist,*argoinfo)
 				log.Println("All setting succeed")
 				slack.SendSlackNotification("webhookurl", "All setting succeed")
 				break

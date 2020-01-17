@@ -1,0 +1,15 @@
+
+orders:
+  - destination: https://kubernetes.default.svc
+    charts:
+      - repository: https://github.com/helm/charts.git
+        path: stable/chaoskube
+        revision: master
+        namespace: default
+        chartvalue: values.yaml
+      - repository: https://github.com/rbxorkt12/cicdexample.git
+        path: stable/
+        revision: master
+        namespace: default
+        chartvalue: values.yaml
+
