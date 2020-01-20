@@ -50,7 +50,6 @@ func Createcall(items []structtype.Item,argoinfo ArgoCDinfo) error {
 	argotoken := argoinfo.token
 	createurl := fmt.Sprintf("http://%s/api/v1/applications", argoport)
 	for _, app := range items {
-		app.Spec.Project = "default"
 		b,err :=json.Marshal(app)
 		if err!=nil {return err}
 		req, err := http.NewRequest("POST", createurl, bytes.NewBuffer(b))
@@ -102,4 +101,29 @@ func Deletecall(item []structtype.Item,argoinfo ArgoCDinfo) error{
 	}
 	return nil
 
+}
+
+func Updatecall(items []structtype.Item,argoinfo ArgoCDinfo) error {
+	argoport := argoinfo.iport
+	argotoken := argoinfo.token
+	for _,updateapp := range items{
+		url:=fmt.Sprintf("http://%s/api/v1/applications/%s", argoport, updateapp.Meta.Name)
+		b,err :=json.Marshal(updateapp)
+		if err!=nil {return err}
+		req, err := http.NewRequest("PUT", url, bytes.NewBuffer(b))
+		if err != nil {
+			return err// handle err
+		}
+		req.Header.Add("Authorization", "Bearer " +argotoken)
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		resp, err := client.Do(req)
+		defer resp.Body.Close()
+		bytes, err := ioutil.ReadAll(resp.Body)
+		if err!=nil { return err}
+		log.Printf("Update: %s의 responce는 %s",updateapp.Meta.Name,string(bytes))
+	}
+	return nil
 }

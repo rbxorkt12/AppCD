@@ -29,12 +29,16 @@ type ArgoCDinfo struct {
 }
 
 //id,password 짜는 알고리즘
+const (
+	password string = "qwe123"
+	id string = "admin"
+)
 
 
 func ArgocdSet() (*ArgoCDinfo,error){
 	var argoinfo ArgoCDinfo
-	argoinfo.password="qwe123"
-	argoinfo.username="admin"
+	argoinfo.password=password
+	argoinfo.username=id
 	url,err:=ArgocdCallurl()
 	if err!=nil {
 		panic(err)

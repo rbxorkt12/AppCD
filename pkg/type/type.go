@@ -31,11 +31,3 @@ type Destination struct {
 	Namespace string `json:"namespace"`
 }
 
-func NewReciver() *Reciver{
-	return &Reciver{}
-}
-
-func NeWItemlist() []Item{
-	var itemlist []Item
-	return itemlist
-}

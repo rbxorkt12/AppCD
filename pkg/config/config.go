@@ -11,8 +11,6 @@ import (
 //argo Rollout 기능은 좀더 고민해봐야 할것 같다.
 
 type Appoconfig struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
 	Orders []Order `json:"orders"`
 }
 
@@ -23,14 +21,20 @@ type Order struct {
 
 type Chart struct {
 	Repository string `json:"repository"`
-	Path 	string `json:"path"`
 	Revision	string `json:"revision"`
-	Namespace string `json:"namespace"`
+	Subpaths []Subpath `json:"subpaths"`
 }
 
-func GetConfig(path string) (*Appoconfig,error) {
+type Subpath struct {
+	Path string `json:"path"`
+	Namespace string `json:"namespace"`
+	Chartvalue string `json:"chartvalue"`
+	Chartdeploystrategy string `json:"chartdeploystrategy"`
+}
+
+func GetConfig(path string,filename string) (*Appoconfig,error) {
 	config := &Appoconfig{}
-	viper.SetConfigName("Appoconfig")
+	viper.SetConfigName(filename)
 	viper.AddConfigPath(".")
 	if path != "" {
 		viper.AddConfigPath(path)
@@ -48,14 +52,16 @@ func (app *Appoconfig)ConvertApp()([]structtype.Item){
 	var list []structtype.Item
 	for _,order:= range app.Orders{
 		for _,chart:= range order.Charts{
-			item:=&structtype.Item{}
-			item.Spec.Dest.Namespace=chart.Namespace
-			item.Spec.Dest.Server=order.Destination
-			item.Spec.Source.Revision=chart.Revision
-			item.Spec.Source.Path=chart.Path
-			item.Spec.Source.Url=chart.Repository
-			item.Meta.Name=fmt.Sprintf("%s_%s_%s_%s",order.Destination,chart.Namespace,chart.Repository,chart.Path)
-			list = append(list, *item)
+			for _,subpath := range chart.Subpaths {
+				item := &structtype.Item{}
+				item.Spec.Dest.Namespace = subpath.Namespace
+				item.Spec.Dest.Server=order.Destination
+				item.Spec.Source.Revision = chart.Revision
+				item.Spec.Source.Path = subpath.Path
+				item.Spec.Source.Url = chart.Repository
+				item.Meta.Name = fmt.Sprintf("%s_%s_%s_%s", order.Destination, subpath.Namespace, chart.Repository, subpath.Path)
+				list = append(list, *item)
+			}
 		}
 	}
 	return list

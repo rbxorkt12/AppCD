@@ -4,7 +4,7 @@ orders:
     charts:
       - repository: https://github.com/helm/charts.git
         revision: master
-        subpath:
+        subpaths:
           - path: incubator/zookeeper
             namespace: default
             chartvalue: values.yaml

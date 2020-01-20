@@ -19,7 +19,7 @@ func Configvalid(directory string) (bool,error){
 	if flag!=false{
 		return false,nil
 	}
-	appoconfig,err:=config.GetConfig(directory)
+	appoconfig,err:=config.GetConfig(directory,"Autoconfig")
 	if (err != nil){
 		return false,err
 	}
