@@ -3,73 +3,108 @@ kind: Workflow
 metadata:
   generateName: appcd-template-
 spec:
-  podGC:
-    strategy: OnWorkflowSuccess
-  volumeClaimTemplates:
-    - metadata:
-        name: temp-git
-      spec:
-        storageClassName: "rbd"
-        accessModes: [ "ReadWriteOnce" ]
-        resources:
-          requests:
-            storage: 100Mi
-
   entrypoint: appcd
   templates:
     - name: appcd
       steps:
-      - - name: repoinfoget
-          template: repoinfoget
-        - name: argocdinformget
-          template: argocdinformget
       - - name: gitdownload
           template: gitdownload
-      - - name: lint
-          template: lint
-      - - name: clusterappget
-          template: clusterappget
-        - name: configappget
-          template: configappget
-      - - name: diffconfigncluster
-          template: diffconfigncluster
-
-
-
-    - name: argocdinformget
+      - - name: appcdfromconfig
+          template: appcdfromconfig
+          arguments:
+            parameters:
+              - name: configbyte
+                value: "{{item.config}}"
+              - name: flag
+                value: "{{item.flag}}"
+            withItems:
+            - { config: "{{steps.gitdownload.outputs.parameters.Autoconfig}}", flag: "auto"}
+            - { config: "{{steps.gitdownload.outputs.parameters.Manualconfig}}" flag: "manual" }
 
     - name: gitdownload
       inputs:
         artifacts:
           - name: temporary-git
-            path: /github/argogyu
+            path: /tmp
             git:
-              repo: {{input.어쩌구저쩌}}
+              repo: https://github.com/rbxorkt12/Appcd_example
       container:
         image: alpine:3.8
         command: [sh, -c]
         args: ["
-          ls -al /github/argogyu;
-          cp -r /github/argogyu /tmp;
-          ls -al /tmp;
         "]
-        volumeMounts:
-          - name: temp-git
-            mountPath: /tmp
+      outputs:
+        parameters:
+          - name: Autoconfig
+            valueFrom:
+              path: /tmp/Autoconfig.yaml
+          - name: Manualconfig
+            valueFrom:
+              path: /tmp/Manualconfig.yaml
+
+    - name: appcdfromconfig
+      inputs:
+        parameters:
+        - name: configbyte
+        - name: flag
+      steps:
+      - - name: lint
+          template: lint
+          arguments:
+            parameters:
+            - name: configbyte_lint
+              value: "{{inputs.parameters.configbyte}}"
+      - - name: convert
+          template: convert
+          arguments:
+            parameters:
+            - name: configbyte_convert
+              value: "{{inputs.parameters.configbyte}}"
+            - name: flag_convert
+              value: "{{inputs.parameters.flag}}"
+      - - name: apicall
+          template: apicall
+          arguments:
+            parameters:
+            - name: convertbyte
+              value: "{{steps.convert.outputs.parameters.convertbyte}}"
+
 
     - name: lint
+      inputs:
+        parameters:
+        - name: configbyte_lint
       container:
-        image: rbxorkt12/lint
+        image: rbxorkt12/appcd:1.0
         command: [sh, -c]
         args: ["
-          ./lint < /tmp/Autoconfig
-          ./lint < /tmp/Manualconfig
+          ./appcd lint<{{inputs.parameters.configbyte_lint}}
         "]
-        volumeMounts:
-          - name: temp-git
-            mountPath: /tmp
 
-    - name:
+    - name: convert
+      inputs:
+        parameters:
+          - name: configbyte_convert
+          - name: flag_convert
+      container:
+        image: rbxorkt12/appcd:1.0
+        command: [sh, -c]
+        args: ["
+        ./appcd convert --{{inputs.parameters.flag_convert}}<{{inputs.parameters.configbyte_convert}} > convertbyte.txt
+        "]
+      outputs:
+        parameters:
+          - name: convertbyte
+            valueFrom:
+              path: json_appbyte.txt
 
-    -
+    - name: apicall
+      inputs:
+        parameters:
+          - name: convertbyte
+      container:
+        image: curlimage:~
+        command: [sh,-c]
+
+
 
