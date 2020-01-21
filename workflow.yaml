@@ -62,13 +62,6 @@ spec:
               value: "{{inputs.parameters.configbyte}}"
             - name: flag_convert
               value: "{{inputs.parameters.flag}}"
-      - - name: apicall
-          template: apicall
-          arguments:
-            parameters:
-            - name: convertbyte
-              value: "{{steps.convert.outputs.parameters.convertbyte}}"
-
 
     - name: lint
       inputs:
@@ -90,7 +83,7 @@ spec:
         image: rbxorkt12/appcd:1.0
         command: [sh, -c]
         args: ["
-        ./appcd convert --{{inputs.parameters.flag_convert}}<{{inputs.parameters.configbyte_convert}} > convertbyte.txt
+        ./appcd convert {{inputs.parameters.flag_convert}}<{{inputs.parameters.configbyte_convert}} > convertbyte.txt
         "]
       outputs:
         parameters:
@@ -98,13 +91,7 @@ spec:
             valueFrom:
               path: json_appbyte.txt
 
-    - name: apicall
-      inputs:
-        parameters:
-          - name: convertbyte
-      container:
-        image: curlimage:~
-        command: [sh,-c]
+
 
 
 

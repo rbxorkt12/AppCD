@@ -9,7 +9,3 @@ orders:
             namespace: default
             chartvalue: values.yaml
             chartdeploystrategy: Canary
-          - path: stable/chartmuseum
-            namespace: default
-            chartvalue: values.yaml
-            chartdeploystrategy: Canary

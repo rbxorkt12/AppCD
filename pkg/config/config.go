@@ -48,8 +48,8 @@ func GetConfig(path string,filename string) (*Appoconfig,error) {
 	return config,nil
 }
 
-func (app *Appoconfig)ConvertApp()([]structtype.Item){
-	var list []structtype.Item
+func (app *Appoconfig)ConvertApp()([]*structtype.Item){
+	var list []*structtype.Item
 	for _,order:= range app.Orders{
 		for _,chart:= range order.Charts{
 			for _,subpath := range chart.Subpaths {
@@ -59,8 +59,9 @@ func (app *Appoconfig)ConvertApp()([]structtype.Item){
 				item.Spec.Source.Revision = chart.Revision
 				item.Spec.Source.Path = subpath.Path
 				item.Spec.Source.Url = chart.Repository
+				item.Spec.Project = "default"
 				item.Meta.Name = fmt.Sprintf("%s_%s_%s_%s", order.Destination, subpath.Namespace, chart.Repository, subpath.Path)
-				list = append(list, *item)
+				list = append(list, item)
 			}
 		}
 	}
