@@ -6,11 +6,16 @@ type Reciver struct{
 
 type Item struct {
 	Meta Metadata `json:"metadata"`
-	Spec Spec	`json"spec"`
+	Spec Spec	`json:"spec"`
 }
 
 type Metadata struct {
 	Name string `json:"name"`
+	Annotations Annotation `json:"annotation"`
+}
+
+type Annotation struct {
+	AppCDoption string `json:"appcdoption"`
 }
 
 type Spec struct {

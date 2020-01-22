@@ -11,14 +11,14 @@ import (
 )
 
 
-func GetappsinConfig ( config *config.Appoconfig) []structtype.Item{
+func GetappsinConfig ( config *config.Appoconfig) []*structtype.Item{
 	return config.ConvertApp()
 
 }
 
 func GetappsinCluster( cluster ArgoCDinfo ) ([]structtype.Item,error){
 	//appname := "appsync"
-	url:=fmt.Sprintf("http://%s/api/v1/applications", cluster.iport) //API calling for get application list, not completed
+	url:=fmt.Sprintf("http://%s/api/v1/applications", cluster.Iport) //API calling for get application list, not completed
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -29,7 +29,7 @@ func GetappsinCluster( cluster ArgoCDinfo ) ([]structtype.Item,error){
 		return nil,err// handle err
 	}
 	//request header setting; authorization is required(to get in argocd cluster)
-	req.Header.Set("Authorization", "Bearer " +cluster.token)
+	req.Header.Set("Authorization", "Bearer " +cluster.Token)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil,err// handle err

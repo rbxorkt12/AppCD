@@ -4,22 +4,55 @@ metadata:
   generateName: appcd-template-
 spec:
   entrypoint: appcd
+  arguments:
+      parameters:
+      - name: repo
+        value: https://github.com/rbxorkt12/Appcd_example
+      - name: argoid
+        value: admin
+      - name: argopassword
+        value: qwe123
+      - name: token
+        value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1NzgyOTEyOTEsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTU3ODI5MTI5MSwic3ViIjoiYWRtaW4ifQ.O_WQAZ5R6Jdca3uZji6LVrmYY461feHGwRmhvDo0uUI"
   templates:
     - name: appcd
       steps:
+      - - name: argocdcred
+          template: argocdcred
       - - name: gitdownload
           template: gitdownload
       - - name: appcdfromconfig
           template: appcdfromconfig
           arguments:
-            parameters:
+            artifacts:
               - name: configbyte
-                value: "{{item.config}}"
+                from: "{{steps.gitdownload.outputs.artifacts.config}}"
+            parameters:
               - name: flag
                 value: "{{item.flag}}"
-            withItems:
-            - { config: "{{steps.gitdownload.outputs.parameters.Autoconfig}}", flag: "auto"}
-            - { config: "{{steps.gitdownload.outputs.parameters.Manualconfig}}" flag: "manual" }
+          withItems:
+          - { flag: "auto"}
+          - { flag: "manual" }
+
+    - name: argocdcred
+      inputs:
+        parameters:
+          - name: argocdid
+            value: "{{workflow.parameters.argoid}}"
+          - name: argocdpassword
+            value: "{{workflow.parameters.argopassword}}"
+      container:
+        image: rbxorkt12/appcd:1.0
+        command: [sh, -c]
+        args: ["
+        ./appcd argoinfo {{input.parameters.argocdid}} {{input.parameters.argocdpassword}} > /argoinfo;
+        cat /argoinfo;
+        "]
+      outputs:
+        parameters:
+          - name: argoinfo
+            valueFrom: 
+              path: /argoinfo
 
     - name: gitdownload
       inputs:
@@ -27,71 +60,203 @@ spec:
           - name: temporary-git
             path: /tmp
             git:
-              repo: https://github.com/rbxorkt12/Appcd_example
+              repo: "{{workflow.parameters.repo}}"
       container:
         image: alpine:3.8
         command: [sh, -c]
+        resources: 
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits: 
+            cpu: 400m
+            memory: 800Mi
         args: ["
         "]
       outputs:
-        parameters:
-          - name: Autoconfig
-            valueFrom:
-              path: /tmp/Autoconfig.yaml
-          - name: Manualconfig
-            valueFrom:
-              path: /tmp/Manualconfig.yaml
+        artifacts:
+        - name: config
+          path: /tmp
 
     - name: appcdfromconfig
       inputs:
-        parameters:
+        artifacts:
         - name: configbyte
+        parameters:
         - name: flag
       steps:
       - - name: lint
           template: lint
           arguments:
-            parameters:
+            artifacts:
             - name: configbyte_lint
-              value: "{{inputs.parameters.configbyte}}"
+              from: "{{inputs.artifacts.configbyte}}"
+            parameters:
+            - name: flag_lint
+              value: "{{inputs.parameters.flag}}"
       - - name: convert
           template: convert
           arguments:
-            parameters:
+            artifacts:
             - name: configbyte_convert
-              value: "{{inputs.parameters.configbyte}}"
+              from: "{{inputs.artifacts.configbyte}}"
+            parameters:
             - name: flag_convert
               value: "{{inputs.parameters.flag}}"
+      - - name: splitapplication
+          template: findappname
+          arguments:
+            artifacts:
+              - name: apps
+                from: "{{steps.convert.outputs.artifacts.convertbyte}}"
+      - - name: oneapplicationapicaller
+          template: apicaller
+          arguments:
+            parameters:
+              - name: name
+                value: "{{item.name}}"
+            artifacts:
+              - name: apps
+                from: "{{steps.convert.outputs.artifacts.convertbyte}}"
+          withParam:
+            "{{steps.splitapplication.outputs.parameters.appnames}}"
 
     - name: lint
       inputs:
         parameters:
+        - name: flag_lint
+        artifacts:
         - name: configbyte_lint
-      container:
+          path: /tmp
+      script:
         image: rbxorkt12/appcd:1.0
-        command: [sh, -c]
-        args: ["
-          ./appcd lint<{{inputs.parameters.configbyte_lint}}
-        "]
+        command: [bash]
+        source: |
+          if [ "auto" == "{{inputs.parameters.flag_lint}}" ];then
+            ./appcd lint</tmp/Autoconfig.yaml;
+          else
+            ./appcd lint</tmp/Manualconfig.yaml;
+          fi;
+        
 
     - name: convert
       inputs:
-        parameters:
+        artifacts:
           - name: configbyte_convert
+            path: /tmp
+        parameters:
           - name: flag_convert
+      script:
+        image: rbxorkt12/appcd:1.0
+        command: [bash]
+        source: |
+          if [ "auto" == "{{inputs.parameters.flag_convert}}" ];then
+            ./appcd convert auto</tmp/Autoconfig.yaml> /convertbyte.txt;
+          else
+            ./appcd convert manual</tmp/Manualconfig.yaml> /convertbyte.txt;
+          fi;
+          cat /convertbyte.txt
+      outputs:
+        artifacts:
+          - name: convertbyte
+            path: /convertbyte.txt
+
+    - name: findappname
+      inputs:
+        artifacts:
+          - name: apps
+            path: /apps.txt
       container:
         image: rbxorkt12/appcd:1.0
         command: [sh, -c]
         args: ["
-        ./appcd convert {{inputs.parameters.flag_convert}}<{{inputs.parameters.configbyte_convert}} > convertbyte.txt
+          cat /apps.txt;
+          ./appcd names < /apps.txt > /appnames.txt;
         "]
       outputs:
         parameters:
-          - name: convertbyte
-            valueFrom:
-              path: json_appbyte.txt
+          - name: appnames
+            valueFrom: 
+              path: /appnames.txt
+
+    - name: apicaller
+      inputs:
+        artifacts:
+          - name: apps
+        parameters:
+          - name: name
+      steps:
+        - - name: findmatch
+            template: findmatch
+            arguments:
+              artifacts:
+                - name: apps
+                  from: "{{inputs.artifacts.apps}}"
+              parameters:
+                - name: name
+                  value: "{{inputs.parameters.name}}"
+        - - name: curl-create
+            template: curl
+            arguments:
+              parameters:
+              - name: method
+                value: "POST"
+              - name: token
+                value: "{{workflow.parameters.token}}"
+              - name: url
+                value: "192.168.48.12:31410/api/v1/applications"
+              artifacts:
+              - name: body
+                from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
+        - - name: curl-validation
+            template: createvalidation
+            arguments:
+              parameters:
+              - name: response
+                value: "{{steps.curl-create.outputs.result}}"
 
 
+    - name: findmatch
+      inputs:
+        artifacts:
+          - name: apps
+            path: /apps.txt
+        parameters:
+          - name: name
+      script:
+        image: rbxorkt12/appcd:1.0
+        command: [bash]
+        source: |
+          cat /apps.txt
+          
+          ./appcd find {{inputs.parameters.name}} < /apps.txt > /requestbody.json
+          cat /requestbody.json
+      outputs:
+        artifacts:
+          - name: requestbody
+            path: /requestbody.json
 
 
+    - name: curl
+      inputs:
+        parameters:
+          - name: method
+          - name: url
+          - name: token
+        artifacts:
+          - name: body
+            path: /tmp/bodyjson
+      script:
+        image: tutum/curl
+        command: [bash]
+        source: |
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -d @/tmp/bodyjson -k
 
+    - name: createvalidation
+      inputs:
+        parameters:
+          - name: response
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args: ["echo result was: {{inputs.parameters.response}}"]
