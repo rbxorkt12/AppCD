@@ -4,94 +4,491 @@ metadata:
   generateName: appcd-template-
 spec:
   entrypoint: appcd
+  arguments:
+      parameters:
+      - name: repo
+        value: https://github.com/rbxorkt12/Appcd_example
+      - name: argoid
+        value: admin
+      - name: argopassword
+        value: qwe123
+      - name: token
+        value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1NzgyOTEyOTEsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTU3ODI5MTI5MSwic3ViIjoiYWRtaW4ifQ.O_WQAZ5R6Jdca3uZji6LVrmYY461feHGwRmhvDo0uUI"
+      - name: url
+        value: "192.168.48.12:31410"
+
   templates:
     - name: appcd
       steps:
-      - - name: gitdownload
-          template: gitdownload
-      - - name: appcdfromconfig
-          template: appcdfromconfig
+      - - name: argocd-cred
+          template: argocd-cred
+      - - name: repo-download
+          template: repo-download
+        - name: GetCurrentAppsinArgocluster
+          template: get-currentapps
           arguments:
             parameters:
+              - name: method
+                value: "GET"
+              - name: token
+                value: "{{workflow.parameters.token}}"
+              - name: url
+                value: "{{workflow.parameters.url}}/api/v1/applications"
+      - - name: configToappPIPE
+          template: configToappPIPE
+          arguments:
+            artifacts:
+              - name: currentapps
+                from: "{{steps.get-currentapps.outputs.artifacts.currentapps}}"
               - name: configbyte
-                value: "{{item.config}}"
+                from: "{{steps.repo-download.outputs.artifacts.config}}"
+            parameters:
               - name: flag
                 value: "{{item.flag}}"
-            withItems:
-            - { config: "{{steps.gitdownload.outputs.parameters.Autoconfig}}", flag: "auto"}
-            - { config: "{{steps.gitdownload.outputs.parameters.Manualconfig}}" flag: "manual" }
+          withItems:
+          - { flag: "auto"}
+          - { flag: "manual" }
 
-    - name: gitdownload
+    - name: get-currentapps
+      inputs:
+        parameters:
+          - name: method
+          - name: token
+          - name: url
+      steps:
+        - - name: get-currentappsinserver
+            template: nobodycurl
+            arguments:
+              parameters:
+                - name: method
+                  value: "{{inputs.parameters.method}}"
+                - name: token
+                  value: "{{inputs.parameters.method}}"
+                - name: url
+                  value: "{{inputs.parameters.method}}"
+        - - name: splitAutoandManualinServer
+            template: splitAutoandManualinServer
+            arguments:
+              artifacts:
+                - name: notsplit
+                  from: "{{steps.get-currentappsinserver.outputs.artifacts.notsplit}}"
+      outputs:
+        artifacts:
+          - name: currentapps
+            from: "{{steps.splitAutoandManualinServer.outputs.artifacts.currentapps}}"
+
+    - name: configToappPIPE
+      inputs:
+        artifacts:
+          - name: currentapps
+          - name: configbyte
+        parameters:
+          - name: flag
+      steps:
+        - - name: lint-config
+            template: lint-config
+            arguments:
+              artifacts:
+                - name: configbyte_lint
+                  from: "{{inputs.artifacts.configbyte}}"
+              parameters:
+                - name: flag_lint
+                  value: "{{inputs.parameters.flag}}"
+        - - name: converttoApps
+            template: converttoApps
+            arguments:
+              artifacts:
+                - name: configbyte_convert
+                  from: "{{inputs.artifacts.configbyte}}"
+              parameters:
+                - name: flag_convert
+                  value: "{{inputs.parameters.flag}}"
+        - - name: Diff
+            template: diff
+            arguments:
+              artifacts:
+                - name: configApps
+                  from: "{{steps.converttoApps.outputs.artifacts.convertbyte}}"
+                - name: currentApps
+                  from: "{{inputs.artifacts.currentapps}}"
+              parameters:
+                - name: flag
+                  value: "{{inputs.parameters.flag}}"
+        - - name: nonsplitPIPE
+            template: nonsplitPIPE
+            arguments:
+              artifacts:
+                - name: afterdiff
+                  from: "{{steps.diff.outputs.artifacts.diffsrc}}"
+              parameters:
+                - name: action
+                  value: "{{item.flag}}"
+            withItems:
+              - { flag: "CREATE"}
+              - { flag: "DELETE"}
+              - { flag: "UPDATE"}
+
+    - name: nonsplitPIPE
+      inputs:
+        artifacts:
+          - name: afterdiff
+        parameters:
+          - name: action
+      steps:
+        - - name: FindAppnames
+            template: findappname
+            arguments:
+              artifacts:
+                - name: apps
+                  from: "{{inputs.artifacts.afterdiff}}"
+              parameters:
+                - name: action
+                  value: "{{inputs.parameters.action}}"
+        - - name: SplitApps
+            template: apicallerPIPE
+            arguments:
+              parameters:
+                - name: action
+                  value: "{{inputs.parameters.action}}"
+                - name: name
+                  value: "{{item.name}}"
+              artifacts:
+                - name: apps
+                  from: "{{steps.convert.outputs.artifacts.convertbyte}}"
+            withParam:
+              "{{steps.FindAppnames.outputs.parameters.appnames}}"
+
+    - name: apicallerPIPE
+      inputs:
+        artifacts:
+          - name: apps
+        parameters:
+          - name: action
+          - name: name
+      steps:
+        - - name: findmatch
+            template: findmatch
+            arguments:
+              artifacts:
+                - name: apps
+                  from: "{{inputs.artifacts.apps}}"
+              parameters:
+                - name: action
+                  value: "{{inputs.parameters.action}}"
+                - name: name
+                  value: "{{inputs.parameters.name}}"
+            when: "{{inputs.parameters.action}} != delete"
+        - - name: curl-action
+            template: curl-action-template
+            arguments:
+              parameters:
+                - name: curl-name
+                  value: "{{inputs.parameters.name}}"
+                - name: curl-actionflag
+                  value: "{{inputs.parameters.action}}"
+        - - name: curl-validation
+            template: curl-validation-template
+            arguments:
+              parameters:
+                - name: response
+                  value: "{{steps.curl-action.outputs.result}}"
+
+    - name: curl-action-template
+      inputs:
+        parameters:
+          - name: curl-name
+          - name: curl-actionflag
+        steps:
+          - - name: curl-create
+              template: curl-with-body
+              arguments:
+                parameters:
+                  - name: method
+                    value: "POST"
+                  - name: url
+                    value: "{{workflow.parameters.clusterIPport}}/api/v1/applications"
+                artifacts:
+                  - name: body
+                    from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
+              when: "{{inputs.parameters.curl-actionflag}} == create"
+
+            - name: curl-update
+              template: curl-with-body
+              arguments:
+                parameters:
+                  - name: method
+                    value: "PUT"
+                  - name: url
+                    value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
+                artifacts:
+                  - name: body
+                    from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
+              when: "{{inputs.parameters.curl-actionflag}} == update"
+
+            - name: curl-delete
+              template: curl-without-body
+              arguments:
+                parameters:
+                  - name: method
+                    value: "DELETE"
+                  - name: url
+                    value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
+              when: "{{inputs.parameters.curl-actionflag}} == delete"
+
+    - name: curl-with-body
+      inputs:
+        parameters:
+          - name: method
+          - name: url
+          - name: token
+            value: "{{workflow.parameters.token}}"
+        artifacts:
+          - name: body
+            path: /tmp/bodyjson
+      script:
+        image: tutum/curl
+        command: [bash]
+        source: |
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token
+          }}" -d @/tmp/bodyjson -k
+
+    - name: curl-without-body
+      inputs:
+        parameters:
+          - name: method
+          - name: url
+          - name: token
+            value: "{{workflow.parameters.token}}"
+      script:
+        image: tutum/curl
+        command: [bash]
+        source: |
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token
+          }}" -k
+
+    - name: curl-validation-template
+      inputs:
+        parameters:
+          - name: response
+      scripts:
+        image: bash:latest
+        command: [bash]
+        source: |
+          cat "{{inputs.parameters.response}}" | grep rror
+
+    - name: argocd-cred
+      inputs:
+        parameters:
+          - name: argocdid
+            value: "{{workflow.parameters.argoid}}"
+          - name: argocdpassword
+            value: "{{workflow.parameters.argopassword}}"
+      container:
+        image: rbxorkt12/appcd:1.0
+        command: [sh, -c]
+        args: ["
+        ./appcd argoinfo {{input.parameters.argocdid}} {{input.parameters.argocdpassword}} > /argoinfo;
+        cat /argoinfo;
+        "]
+      outputs:
+        parameters:
+          - name: argoinfo
+            valueFrom: 
+              path: /argoinfo
+
+    - name: repo-download
       inputs:
         artifacts:
           - name: temporary-git
             path: /tmp
             git:
-              repo: https://github.com/rbxorkt12/Appcd_example
+              repo: "{{workflow.parameters.repo}}"
       container:
         image: alpine:3.8
         command: [sh, -c]
+        resources: 
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits: 
+            cpu: 400m
+            memory: 800Mi
         args: ["
         "]
       outputs:
-        parameters:
-          - name: Autoconfig
-            valueFrom:
-              path: /tmp/Autoconfig.yaml
-          - name: Manualconfig
-            valueFrom:
-              path: /tmp/Manualconfig.yaml
+        artifacts:
+        - name: config
+          path: /tmp
 
-    - name: appcdfromconfig
+
+    - name: splitAutoandManualinServer
+      inputs:
+        artifacts:
+          - name: notsplit
+            path: /notsplit
+      container:
+        image: rbxorkt12/appcd:1.0
+        command: [sh, -c]
+        args: ["
+          cat /apps.txt;
+          ./appcd split Auto< /notsplit >/apps/Autocurrentapps;
+          cat /apps/Autocurrentapps;
+          ./appcd split Manual< /notsplit >/apps/Manualcurrentapps;
+          cat /apps/Manualcurrentapps;
+        "]
+      outputs:
+        artifacts:
+          - name: currentapps
+            path: /apps
+
+    - name: diff
       inputs:
         parameters:
-        - name: configbyte
-        - name: flag
-      steps:
-      - - name: lint
-          template: lint
-          arguments:
-            parameters:
-            - name: configbyte_lint
-              value: "{{inputs.parameters.configbyte}}"
-      - - name: convert
-          template: convert
-          arguments:
-            parameters:
-            - name: configbyte_convert
-              value: "{{inputs.parameters.configbyte}}"
-            - name: flag_convert
-              value: "{{inputs.parameters.flag}}"
+          - name: flag
+        artifacts:
+          - name: configApps
+            path: /convertbyte
+          - name: currentApps
+            path: /current
+      script:
+        image: rbxorkt12/appcd:1.0
+        command: [bash]
+        source: |
+          if [ "auto" == "{{inputs.parameters.flag}}" ];then
+            ./appcd diff '/convertbyte' '/current/Autocurrentapps'
+          else
+            ./appcd diff '/convertbyte' '/current/Manualcurrentapps'
+          fi;
+      outputs:
+        artifacts:
+          - name: diffsrc
+            path: /diff
 
-    - name: lint
+    - name: lint-config
       inputs:
         parameters:
+        - name: flag_lint
+        artifacts:
         - name: configbyte_lint
-      container:
+          path: /tmp
+      script:
         image: rbxorkt12/appcd:1.0
-        command: [sh, -c]
-        args: ["
-          ./appcd lint<{{inputs.parameters.configbyte_lint}}
-        "]
+        command: [bash]
+        source: |
+          if [ "auto" == "{{inputs.parameters.flag_lint}}" ];then
+            ./appcd lint</tmp/Autoconfig.yaml;
+          else
+            ./appcd lint</tmp/Manualconfig.yaml;
+          fi;
+        
 
-    - name: convert
+    - name: converttoApps
       inputs:
-        parameters:
+        artifacts:
           - name: configbyte_convert
+            path: /tmp
+        parameters:
           - name: flag_convert
-      container:
+      script:
         image: rbxorkt12/appcd:1.0
-        command: [sh, -c]
-        args: ["
-        ./appcd convert {{inputs.parameters.flag_convert}}<{{inputs.parameters.configbyte_convert}} > convertbyte.txt
-        "]
+        command: [bash]
+        source: |
+          if [ "auto" == "{{inputs.parameters.flag_convert}}" ];then
+            ./appcd convert auto</tmp/Autoconfig.yaml> /convertbyte.txt;
+          else
+            ./appcd convert manual</tmp/Manualconfig.yaml> /convertbyte.txt;
+          fi;
+          cat /convertbyte.txt
+      outputs:
+        artifacts:
+          - name: convertbyte
+            path: /convertbyte.txt
+
+    - name: findappname
+      inputs:
+        artifacts:
+          - name: apps
+            path: /diff
+        parameters:
+          - name: action
+      script:
+        image: rbxorkt12/appcd:1.0
+        command: [bash]
+        source: |
+          ls -al /diff
+          if [ "CREATE" == "{{inputs.parameters.action}}" ];then
+            ./appcd names < /diff/CREATE > /appnames.txt;
+          if [ "DELETE" == "{{inputs.parameters.action}}" ];then
+            ./appcd names < /diff/DELETE > /appnames.txt;
+          if [ "CREATE" == "{{inputs.parameters.action}}" ];then
+            ./appcd names < /diff/UPDATE > /appnames.txt;
       outputs:
         parameters:
-          - name: convertbyte
-            valueFrom:
-              path: json_appbyte.txt
+          - name: appnames
+            valueFrom: 
+              path: /appnames.txt
 
+    - name: findmatch
+      inputs:
+        artifacts:
+          - name: apps
+            path: /diff
+        parameters:
+          - name: name
+          - name: action
+      script:
+        image: rbxorkt12/appcd:1.0
+        command: [bash]
+        source: |
+          ls -al /diff
+          if [ "CREATE" == "{{inputs.parameters.action}}" ];then
+            ./appcd find {{inputs.parameters.name}} < /diff/CREATE > /requestbody.json;
+          if [ "DELETE" == "{{inputs.parameters.action}}" ];then
+            ./appcd find {{inputs.parameters.name}} < /diff/DELETE > /requestbody.json;
+          if [ "UPDATE" == "{{inputs.parameters.action}}" ];then
+            ./appcd find {{inputs.parameters.name}} < /diff/UPDATE > /requestbody.json;
+          cat /requestbody.json
+      outputs:
+        artifacts:
+          - name: requestbody
+            path: /requestbody.json
 
+    - name: nobodycurl
+      inputs:
+        parameters:
+          - name: method
+          - name: url
+          - name: token
+      script:
+        image: tutum/curl
+        command: [bash]
+        source: |
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -d  -k > /notsplit
+      outputs:
+        artifacts:
+          - name: notsplit
+            path: /notsplit
 
+    - name: curl
+      inputs:
+        parameters:
+          - name: method
+          - name: url
+          - name: token
+        artifacts:
+          - name: body
+            path: /tmp/bodyjson
+      script:
+        image: tutum/curl
+        command: [bash]
+        source: |
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -d @/tmp/bodyjson -k
 
-
+    - name: createvalidation
+      inputs:
+        parameters:
+          - name: response
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args: ["echo result was: {{inputs.parameters.response}}"]

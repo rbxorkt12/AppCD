@@ -22,45 +22,40 @@ import (
 var kubeconfig *string
 
 type ArgoCDinfo struct {
-	username string
-	password string
-	iport string
-	token string
+	Username string `json:"username"`
+	Password string	`json:"password"`
+	Iport string `json:"iport"`
+	Token string `json:"token"`
 }
 
 //id,password 짜는 알고리즘
-const (
-	password string = "qwe123"
-	id string = "admin"
-)
 
-
-func ArgocdSet() (*ArgoCDinfo,error){
+func ArgocdSet(id string, password string) (*ArgoCDinfo,error){
 	var argoinfo ArgoCDinfo
-	argoinfo.password=password
-	argoinfo.username=id
+	argoinfo.Password=password
+	argoinfo.Username=id
 	url,err:=ArgocdCallurl()
 	if err!=nil {
 		panic(err)
 		return nil,err
 	}
-	argoinfo.iport = url
+	argoinfo.Iport = url
 	gettoken(&argoinfo)
 	return &argoinfo,nil
 
 }
 
-func gettoken(cluster *ArgoCDinfo) {
+func gettoken(cluster *ArgoCDinfo) string{
 	//인증서 없이 접근
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
 	//accountmap default id/pw setting: admin/password
-	accountmap := map[string] string{"username" : cluster.username, "password" : cluster.password}
+	accountmap := map[string] string{"username" : cluster.Username, "password" : cluster.Password}
 	tokenmap := map[string]string{"token":"None"}
 	bodyjson, _ :=json.Marshal(accountmap)
-	url:=fmt.Sprintf("http://%s/api/v1/session", cluster.iport)
+	url:=fmt.Sprintf("http://%s/api/v1/session", cluster.Iport)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyjson))
 	if err != nil {
 		panic(err)
@@ -76,8 +71,8 @@ func gettoken(cluster *ArgoCDinfo) {
 	if err != nil {
 		panic(err)
 	}
-	cluster.token = tokenmap["token"]
-	fmt.Printf("this is cluster.token value -> %s\n", cluster.token)
+	cluster.Token = tokenmap["token"]
+	return cluster.Token
 }
 
 func ArgocdCallurl() (string,error){
@@ -92,7 +87,6 @@ func ArgocdCallurl() (string,error){
 		return "",err
 	}
 	url:= fmt.Sprintf("%s:%s",clusterip,argocdport)
-	log.Printf("Argocd server url is %s",url)
 	return url,nil
 }
 
@@ -123,7 +117,6 @@ func Connect() (*kubernetes.Clientset, error) {
 			flag.Parse()
 		}
 
-		log.Println("Running out of Kubernetes cluster")
 		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {
 			panic(err.Error())

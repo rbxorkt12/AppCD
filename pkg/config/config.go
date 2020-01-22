@@ -26,6 +26,7 @@ type Chart struct {
 }
 
 type Subpath struct {
+	Name string `json:"name"`
 	Path string `json:"path"`
 	Namespace string `json:"namespace"`
 	Chartvalue string `json:"chartvalue"`
@@ -60,7 +61,7 @@ func (app *Appoconfig)ConvertApp()([]*structtype.Item){
 				item.Spec.Source.Path = subpath.Path
 				item.Spec.Source.Url = chart.Repository
 				item.Spec.Project = "default"
-				item.Meta.Name = fmt.Sprintf("%s_%s_%s_%s", order.Destination, subpath.Namespace, chart.Repository, subpath.Path)
+				item.Meta.Name = subpath.Name
 				list = append(list, item)
 			}
 		}

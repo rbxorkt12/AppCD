@@ -13,8 +13,8 @@ import (
 
 
 func Syncall(items []structtype.Item,argoinfo ArgoCDinfo)error{
-	argoport:=argoinfo.iport
-	argotoken:=argoinfo.token
+	argoport:=argoinfo.Iport
+	argotoken:=argoinfo.Token
 	for _,app := range items{
 		var revisioncaller map[string]string
 		appname:=app.Meta.Name
@@ -46,8 +46,8 @@ func Syncall(items []structtype.Item,argoinfo ArgoCDinfo)error{
 }
 
 func Createcall(items []structtype.Item,argoinfo ArgoCDinfo) error {
-	argoport := argoinfo.iport
-	argotoken := argoinfo.token
+	argoport := argoinfo.Iport
+	argotoken := argoinfo.Token
 	createurl := fmt.Sprintf("http://%s/api/v1/applications", argoport)
 	for _, app := range items {
 		b,err :=json.Marshal(app)
@@ -72,8 +72,8 @@ func Createcall(items []structtype.Item,argoinfo ArgoCDinfo) error {
 }
 
 func Deletecall(item []structtype.Item,argoinfo ArgoCDinfo) error{
-	argoport:=argoinfo.iport
-	argotoken:=argoinfo.token
+	argoport:=argoinfo.Iport
+	argotoken:=argoinfo.Token
 	for _,app:= range item {
 		url:=fmt.Sprintf("http://%s/api/v1/applications/%s", argoport, app.Meta.Name)
 		req, err := http.NewRequest("DELETE", url, nil)
@@ -104,8 +104,8 @@ func Deletecall(item []structtype.Item,argoinfo ArgoCDinfo) error{
 }
 
 func Updatecall(items []structtype.Item,argoinfo ArgoCDinfo) error {
-	argoport := argoinfo.iport
-	argotoken := argoinfo.token
+	argoport := argoinfo.Iport
+	argotoken := argoinfo.Token
 	for _,updateapp := range items{
 		url:=fmt.Sprintf("http://%s/api/v1/applications/%s", argoport, updateapp.Meta.Name)
 		b,err :=json.Marshal(updateapp)
