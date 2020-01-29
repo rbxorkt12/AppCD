@@ -14,7 +14,7 @@ spec:
         value: qwe123
       - name: token
         value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1NzgyOTEyOTEsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTU3ODI5MTI5MSwic3ViIjoiYWRtaW4ifQ.O_WQAZ5R6Jdca3uZji6LVrmYY461feHGwRmhvDo0uUI"
-      - name: url
+      - name: clusterIPport
         value: "192.168.48.12:31410"
 
   templates:
@@ -33,13 +33,13 @@ spec:
               - name: token
                 value: "{{workflow.parameters.token}}"
               - name: url
-                value: "{{workflow.parameters.url}}/api/v1/applications"
+                value: "{{workflow.parameters.clusterIPport}}/api/v1/applications"
       - - name: configToappPIPE
           template: configToappPIPE
           arguments:
             artifacts:
               - name: currentapps
-                from: "{{steps.get-currentapps.outputs.artifacts.currentapps}}"
+                from: "{{steps.GetCurrentAppsinArgocluster.outputs.artifacts.currentapps}}"
               - name: configbyte
                 from: "{{steps.repo-download.outputs.artifacts.config}}"
             parameters:
@@ -63,9 +63,9 @@ spec:
                 - name: method
                   value: "{{inputs.parameters.method}}"
                 - name: token
-                  value: "{{inputs.parameters.method}}"
+                  value: "{{inputs.parameters.token}}"
                 - name: url
-                  value: "{{inputs.parameters.method}}"
+                  value: "{{inputs.parameters.url}}"
         - - name: splitAutoandManualinServer
             template: splitAutoandManualinServer
             arguments:
@@ -103,7 +103,7 @@ spec:
               parameters:
                 - name: flag_convert
                   value: "{{inputs.parameters.flag}}"
-        - - name: Diff
+        - - name: diff
             template: diff
             arguments:
               artifacts:
@@ -154,7 +154,7 @@ spec:
                   value: "{{item.name}}"
               artifacts:
                 - name: apps
-                  from: "{{steps.convert.outputs.artifacts.convertbyte}}"
+                  from: "{{inputs.artifacts.afterdiff}}"
             withParam:
               "{{steps.FindAppnames.outputs.parameters.appnames}}"
 
@@ -186,55 +186,69 @@ spec:
                   value: "{{inputs.parameters.name}}"
                 - name: curl-actionflag
                   value: "{{inputs.parameters.action}}"
-        - - name: curl-validation
-            template: curl-validation-template
-            arguments:
-              parameters:
-                - name: response
-                  value: "{{steps.curl-action.outputs.result}}"
+              artifacts:
+                - name: curl-body
+                  from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
 
     - name: curl-action-template
       inputs:
         parameters:
           - name: curl-name
           - name: curl-actionflag
-        steps:
-          - - name: curl-create
-              template: curl-with-body
-              arguments:
-                parameters:
-                  - name: method
-                    value: "POST"
-                  - name: url
-                    value: "{{workflow.parameters.clusterIPport}}/api/v1/applications"
-                artifacts:
-                  - name: body
-                    from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
-              when: "{{inputs.parameters.curl-actionflag}} == create"
+        artifacts:
+          - name: curl-body
+      steps:
+        - - name: curl-create
+            template: curl-with-body
+            arguments:
+              parameters:
+                - name: method
+                  value: "POST"
+                - name: url
+                  value: "{{workflow.parameters.clusterIPport}}/api/v1/applications"
+              artifacts:
+                - name: body
+                  from: "{{inputs.artifacts.curl-body}}"
+            when: "{{inputs.parameters.curl-actionflag}} == create"
+          - name: curl-update
+            template: curl-with-body
+            arguments:
+              parameters:
+                - name: method
+                  value: "PUT"
+                - name: url
+                  value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
+              artifacts:
+                - name: body
+                  from: "{{inputs.artifacts.curl-body}}"
+            when: "{{inputs.parameters.curl-actionflag}} == update"
+          - name: curl-delete
+            template: curl-without-body
+            arguments:
+              parameters:
+                - name: method
+                  value: "DELETE"
+                - name: url
+                  value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
+            when: "{{inputs.parameters.curl-actionflag}} == delete"
 
-            - name: curl-update
-              template: curl-with-body
-              arguments:
-                parameters:
-                  - name: method
-                    value: "PUT"
-                  - name: url
-                    value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
-                artifacts:
-                  - name: body
-                    from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
-              when: "{{inputs.parameters.curl-actionflag}} == update"
-
-            - name: curl-delete
-              template: curl-without-body
-              arguments:
-                parameters:
-                  - name: method
-                    value: "DELETE"
-                  - name: url
-                    value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
-              when: "{{inputs.parameters.curl-actionflag}} == delete"
-
+        - - name: curl-validation
+            template: curl-validation-template
+            arguments:
+              parameters:
+              - name: status-create
+                value: "{{steps.curl-create.status}}" 
+              - name: status-update
+                value: "{{steps.curl-create.status}}"
+              - name: status-delete
+                value: "{{steps.curl-delete.status}}"
+              - name: response-create
+                value: "{{steps.curl-create.outputs.result}}"
+              - name: response-update
+                value: "{{steps.curl-update.outputs.result}}"
+              - name: response-delete
+                value: "{{steps.curl-delete.outputs.result}}"
+      
     - name: curl-with-body
       inputs:
         parameters:
@@ -249,8 +263,7 @@ spec:
         image: tutum/curl
         command: [bash]
         source: |
-          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token
-          }}" -d @/tmp/bodyjson -k
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -d @/tmp/bodyjson -k
 
     - name: curl-without-body
       inputs:
@@ -263,18 +276,8 @@ spec:
         image: tutum/curl
         command: [bash]
         source: |
-          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token
-          }}" -k
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -k
 
-    - name: curl-validation-template
-      inputs:
-        parameters:
-          - name: response
-      scripts:
-        image: bash:latest
-        command: [bash]
-        source: |
-          cat "{{inputs.parameters.response}}" | grep rror
 
     - name: argocd-cred
       inputs:
@@ -330,7 +333,8 @@ spec:
         image: rbxorkt12/appcd:1.0
         command: [sh, -c]
         args: ["
-          cat /apps.txt;
+          cat /notsplit;
+          mkdir /apps;
           ./appcd split Auto< /notsplit >/apps/Autocurrentapps;
           cat /apps/Autocurrentapps;
           ./appcd split Manual< /notsplit >/apps/Manualcurrentapps;
@@ -354,11 +358,13 @@ spec:
         image: rbxorkt12/appcd:1.0
         command: [bash]
         source: |
+          mkdir diff;
           if [ "auto" == "{{inputs.parameters.flag}}" ];then
             ./appcd diff '/convertbyte' '/current/Autocurrentapps'
           else
             ./appcd diff '/convertbyte' '/current/Manualcurrentapps'
           fi;
+          ls -al /diff;
       outputs:
         artifacts:
           - name: diffsrc
@@ -393,6 +399,8 @@ spec:
         image: rbxorkt12/appcd:1.0
         command: [bash]
         source: |
+          cat /tmp/Autoconfig.yaml
+          cat /tmp/Manualconfig.yaml
           if [ "auto" == "{{inputs.parameters.flag_convert}}" ];then
             ./appcd convert auto</tmp/Autoconfig.yaml> /convertbyte.txt;
           else
@@ -422,6 +430,7 @@ spec:
             ./appcd names < /diff/DELETE > /appnames.txt;
           if [ "CREATE" == "{{inputs.parameters.action}}" ];then
             ./appcd names < /diff/UPDATE > /appnames.txt;
+          cat appnames.txt;
       outputs:
         parameters:
           - name: appnames
@@ -463,32 +472,49 @@ spec:
         image: tutum/curl
         command: [bash]
         source: |
-          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -d  -k > /notsplit
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -k > /notsplit
+          cat /notsplit
       outputs:
         artifacts:
           - name: notsplit
             path: /notsplit
 
-    - name: curl
+    - name: curl-validation-template
       inputs:
         parameters:
-          - name: method
-          - name: url
-          - name: token
-        artifacts:
-          - name: body
-            path: /tmp/bodyjson
+        - name: status-create
+        - name: status-update
+        - name: status-delete
+        - name: response-create
+        - name: response-update
+        - name: response-delete
       script:
-        image: tutum/curl
+        image: bash:latest
         command: [bash]
         source: |
-          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -d @/tmp/bodyjson -k
+          if [ "Succeeded" == "{{inputs.parameters.status-create}}" ];then
+            echo {{inputs.parameters.response-create}} | grep rror
+          else if [ "Succeeded" == "{{inputs.parameters.status-update}}" ];then
+            echo {{inputs.parameters.response-update}} | grep rror
+          else if [ "Succeeded" == "{{inputs.parameters.status-delete}}" ];then
+            echo {{inputs.parameters.response-delete}} | grep rror
+          fi;
 
-    - name: createvalidation
-      inputs:
-        parameters:
-          - name: response
-      container:
-        image: alpine:latest
-        command: [sh, -c]
-        args: ["echo result was: {{inputs.parameters.response}}"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

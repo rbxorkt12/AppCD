@@ -6,10 +6,12 @@ orders:
         revision: master
         subpaths:
           - path: incubator/zookeeper
+            name: qqq
             namespace: default
             chartvalue: values.yaml
             chartdeploystrategy: Canary
           - path: incubator/mysqlha
+            name: abc
             namespace: default
             chartvalue: values.yaml
             chartdeploystrategy: Canary

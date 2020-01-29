@@ -6,6 +6,7 @@ orders:
         revision: master
         subpaths:
           - path: stable/chaoskube
+            name: abc
             namespace: default
             chartvalue: values.yaml
             chartdeploystrategy: Canary

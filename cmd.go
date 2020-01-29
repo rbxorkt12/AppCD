@@ -10,6 +10,7 @@ import (
 	"os"
 	"github.com/rbxorkt12/applink/pkg/config"
 	"gopkg.in/yaml.v2"
+	"io"
 )
 
 
@@ -93,22 +94,27 @@ func main(){
 			log.Fatalln(err)
 			os.Exit(123)
 		}
+		var autolist []structtype.Item
+		var manuallist []structtype.Item
 		for _,item:= range recieve.Items{
-			if item.Meta.Annotations.AppCDoption == "Auto" && a== "Auto" {
-				onebody, err := json.MarshalIndent(item, "", "   ")
+			if item.Meta.Annotations.AppCDoption == "Auto"  {
 				if err != nil {
 					log.Fatalln(err)
 					os.Exit(23)
 				}
-				fmt.Println(string(onebody))
+				autolist=append(autolist,item)
 			}
-			if item.Meta.Annotations.AppCDoption == "Manual" && a== "Manual"{
-				onebody,err:=json.MarshalIndent(item,"","   ")
+			if item.Meta.Annotations.AppCDoption == "Manual"{
 				if err!=nil {
 					log.Fatalln(err)
 					os.Exit(23)
 				}
-				fmt.Println(string(onebody))
+				manuallist=append(manuallist,item)
+			}
+			if a== "Auto"{
+				json.MarshalIndent(autolist,"","   ")
+			}else if a=="Manual"{
+				json.MarshalIndent(manuallist,"","   ")
 			}
 		}
 	case "diff":
@@ -124,19 +130,44 @@ func main(){
 			fmt.Errorf("no file %s",after)
 			os.Exit(123)
 		}
+		fi,err:=os.Stat(before)
+		len:=fi.Size()
+		fi2,err:=os.Stat(after)
+		len2:=fi2.Size()
 		dat, err := ioutil.ReadFile(before)
 		if err!=nil {
 			log.Fatalln(err)
 			os.Exit(123)
 		}
 		var beforeitems []structtype.Item
+                dat2, err := ioutil.ReadFile(after)
+                var afteritems []structtype.Item
+		if len<=10{
+			fmt.Println("sss")
+			if len2<=10{
+				fmt.Println("both emptry")
+				os.Exit(123)
+			}else{
+				err=json.Unmarshal(dat2,&afteritems)
+				writeitems(afteritems,"/diff/CREATE")
+				os.Create("/diff/DELETE")
+				os.Create("/diff/UPDATE")
+				return
+			}
+		}else{
+			if len2<=10{
+				err=json.Unmarshal(dat,&beforeitems)
+				writeitems(beforeitems,"/diff/DELETE")
+				os.Create("/diff/CREATE")
+                                os.Create("/diff/UPDATE")
+				return
+			}
+		}
 		err=json.Unmarshal(dat,&beforeitems)
 		if err!=nil {
 			log.Fatalln(err)
 			os.Exit(123)
 		}
-		dat2, err := ioutil.ReadFile(after)
-		var afteritems []structtype.Item
 		err=json.Unmarshal(dat2,&afteritems)
 		if err!=nil {
 			log.Fatalln(err)
@@ -166,6 +197,10 @@ func Readstdinandunmarshalconfig() (config.Appoconfig,error){
 
 func ReadStdinAndUnmarshalApp() ([]*structtype.Item,error){
 	data,err:= ioutil.ReadAll(os.Stdin)
+	if err!=nil {return nil,err }
+	if string(data) =="\n"{
+		os.Exit(123)
+	}
 	if err!=nil {
 		return nil,err
 	}
@@ -177,15 +212,15 @@ func ReadStdinAndUnmarshalApp() ([]*structtype.Item,error){
 	return apps,nil
 }
 
-func ReadStdinAndUnmarshalReciver() (*structtype.Reciver,error){
+func ReadStdinAndUnmarshalReciver() (structtype.Reciver,error){
 	data,err:= ioutil.ReadAll(os.Stdin)
 	if err!=nil {
-		return nil,err
+		return structtype.Reciver{},err
 	}
-	var reciver *structtype.Reciver
-	err=json.Unmarshal(data,reciver)
+	var reciver structtype.Reciver
+	err=json.Unmarshal(data,&reciver)
 	if err!=nil {
-		return nil,err
+		return structtype.Reciver{},err
 	}
 	return reciver,nil
 }
@@ -206,12 +241,27 @@ func writeitems(qq []structtype.Item,dest string){
 		log.Fatalln(err)
 		os.Exit(123)
 	}
-	for _,item:=range qq{
-		byte,err:=json.MarshalIndent(item,"","   ")
-		if err!=nil {
-			log.Fatalln(err)
-			os.Exit(123)
-		}
-		f.WriteString(string(byte))
+	byte,err:=json.MarshalIndent(qq,"","   ")
+	if err!=nil {
+		log.Fatalln(err)
+		os.Exit(123)
 	}
+	f.WriteString(string(byte))
+	
+}
+func IsDirEmpty(name string) bool {
+        f, err := os.Open(name)
+        if err != nil {
+                return false
+        }
+        defer f.Close()
+
+        // read in ONLY one file
+        _, err = f.Readdir(1)
+
+        // and if the file is EOF... well, the dir is empty.
+        if err == io.EOF {
+                return true
+        }
+        return false
 }
