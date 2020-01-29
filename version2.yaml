@@ -284,5 +284,6 @@ spec:
         - name: response
       container:
         image: bash:latest
-        command: [sh, -c]
-        args: [cat "{{inputs.parameters.response}}" | grep rror]
+	command: [bash]
+        source: |
+          cat "{{inputs.parameters.response}}" | grep rror
