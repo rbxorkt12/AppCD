@@ -199,7 +199,7 @@ spec:
             - name: curl-actionflag
               value: "{{inputs.parameters.actionflag}}"
       - - name: curl-validation
-          template:
+          template: curl-validation-template
           arguments:
             parameters:
             - name: response
@@ -212,7 +212,7 @@ spec:
         - name: curl-actionflag
         steps:
         - - name: curl-create
-            template: curl-body
+            template: curl-with-body
             arguments:
               parameters:
               - name: method
@@ -225,7 +225,7 @@ spec:
             when: "{{inputs.parameters.curl-actionflag}} == create"
 
           - name: curl-update
-            template: curl-body
+            template: curl-with-body
             arguments:
               parameters:
               - name: method
@@ -238,7 +238,7 @@ spec:
             when: "{{inputs.parameters.curl-actionflag}} == update"
 
           - name: curl-delete
-            template: curl-no-body
+            template: curl-without-body
             arguments:
               parameters:
               - name: method
