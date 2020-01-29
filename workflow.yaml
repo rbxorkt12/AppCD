@@ -39,7 +39,7 @@ spec:
           arguments:
             artifacts:
               - name: currentapps
-                from: "{{steps.get-currentapps.outputs.artifacts.currentapps}}"
+                from: "{{steps.GetCurrentAppsinArgocluster.outputs.artifacts.currentapps}}"
               - name: configbyte
                 from: "{{steps.repo-download.outputs.artifacts.config}}"
             parameters:
@@ -103,7 +103,7 @@ spec:
               parameters:
                 - name: flag_convert
                   value: "{{inputs.parameters.flag}}"
-        - - name: Diff
+        - - name: diff
             template: diff
             arguments:
               artifacts:
@@ -154,7 +154,7 @@ spec:
                   value: "{{item.name}}"
               artifacts:
                 - name: apps
-                  from: "{{steps.convert.outputs.artifacts.convertbyte}}"
+                  from: "{{inputs.artifacts.afterdiff}}"
             withParam:
               "{{steps.FindAppnames.outputs.parameters.appnames}}"
 
@@ -186,6 +186,9 @@ spec:
                   value: "{{inputs.parameters.name}}"
                 - name: curl-actionflag
                   value: "{{inputs.parameters.action}}"
+              artifacts:
+                - name: curl-body
+                  from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
         - - name: curl-validation
             template: curl-validation-template
             arguments:
@@ -198,6 +201,8 @@ spec:
         parameters:
           - name: curl-name
           - name: curl-actionflag
+        artifacts:
+          - name: curl-body
         steps:
           - - name: curl-create
               template: curl-with-body
@@ -209,7 +214,7 @@ spec:
                     value: "{{workflow.parameters.clusterIPport}}/api/v1/applications"
                 artifacts:
                   - name: body
-                    from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
+                    from: "{{inputs.artifacts.curl-body}}"
               when: "{{inputs.parameters.curl-actionflag}} == create"
 
             - name: curl-update
@@ -222,7 +227,7 @@ spec:
                     value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
                 artifacts:
                   - name: body
-                    from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
+                    from: "{{inputs.artifacts.curl-body}}"
               when: "{{inputs.parameters.curl-actionflag}} == update"
 
             - name: curl-delete
