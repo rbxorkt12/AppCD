@@ -283,6 +283,6 @@ spec:
         parameters:
         - name: response
       container:
-        image: alpine:latest
+        image: bash:latest
         command: [sh, -c]
         args: [cat "{{inputs.parameters.response}}" | grep rror]
