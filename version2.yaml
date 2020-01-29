@@ -1,0 +1,288 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: appcd-template-
+spec:
+  entrypoint: appcd
+  arguments:
+      parameters:
+      - name: repo
+        value: https://github.com/rbxorkt12/Appcd_example
+      - name: argoid
+        value: admin
+      - name: argopassword
+        value: qwe123
+      - name: token
+        value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1NzgyOTEyOTEsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTU3ODI5MTI5MSwic3ViIjoiYWRtaW4ifQ.O_WQAZ5R6Jdca3uZji6LVrmYY461feHGwRmhvDo0uUI"
+  templates:
+    - name: appcd
+      steps:
+      - - name: argocdcred
+          template: argocdcred
+      - - name: gitdownload
+          template: gitdownload
+      - - name: appcdfromconfig
+          template: appcdfromconfig
+          arguments:
+            artifacts:
+            - name: configbyte
+              from: "{{steps.gitdownload.outputs.artifacts.config}}"
+            parameters:
+            - name: flag
+              value: "{{item.flag}}"
+          withItems:
+          - { flag: "auto"}
+          - { flag: "manual" }
+
+    - name: argocdcred
+      inputs:
+        parameters:
+        - name: argocdid
+          value: "{{workflow.parameters.argoid}}"
+        - name: argocdpassword
+          value: "{{workflow.parameters.argopassword}}"
+      container:
+        image: rbxorkt12/appcd:1.0
+        command: [sh, -c]
+        args: ["./appcd argoinfo {{input.parameters.argocdid}} {{input.parameters.argocdpassword}} > /argoinfo; cat /argoinfo;"]
+      outputs:
+        parameters:
+        - name: argoinfo
+          valueFrom:
+            path: /argoinfo
+
+    - name: gitdownload
+      inputs:
+        artifacts:
+        - name: temporary-git
+          path: /tmp
+          git:
+            repo: "{{workflow.parameters.repo}}"
+      container:
+        image: alpine:3.8
+        command: [sh, -c]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 400m
+            memory: 800Mi
+        args: [""]
+      outputs:
+        artifacts:
+        - name: config
+          path: /tmp
+    - name: appcdfromconfig
+      inputs:
+        artifacts:
+        - name: configbyte
+        parameters:
+        - name: flag
+      steps:
+      - - name: lint
+          template: lint
+          arguments:
+            artifacts:
+            - name: configbyte_lint
+              from: "{{inputs.artifacts.configbyte}}"
+            parameters:
+            - name: flag_lint
+              value: "{{inputs.parameters.flag}}"
+      - - name: convert
+          template: convert
+          arguments:
+            artifacts:
+            - name: configbyte_convert
+              from: "{{inputs.artifacts.configbyte}}"
+            parameters:
+            - name: flag_convert
+              value: "{{inputs.parameters.flag}}"
+      - - name: splitapplication
+          template: findappname
+          arguments:
+            artifacts:
+            - name: apps
+              from: "{{steps.convert.outputs.artifacts.convertbyte}}"
+      - - name: oneapplicationapicaller
+          template: apicaller
+          arguments:
+            parameters:
+            - name: name
+              value: "{{item.name}}"
+            artifacts:
+            - name: apps
+              from: "{{steps.convert.outputs.artifacts.convertbyte}}"
+          withParam:
+            "{{steps.splitapplication.outputs.parameters.appnames}}"
+
+    - name: lint
+      inputs:
+        parameters:
+        - name: flag_lint
+        artifacts:
+        - name: configbyte_lint
+          path: /tmp
+      script:
+        image: rbxorkt12/appcd:1.0
+        command: [bash]
+        source: |
+          if [ "auto" == "{{inputs.parameters.flag_lint}}" ];then
+            ./appcd lint</tmp/Autoconfig.yaml;
+          else
+            ./appcd lint</tmp/Manualconfig.yaml;
+          fi;
+
+    - name: convert
+      inputs:
+        artifacts:
+        - name: configbyte_convert
+          path: /tmp
+        parameters:
+        - name: flag_convert
+      script:
+        image: rbxorkt12/appcd:1.0
+        command: [bash]
+        source: |
+          if [ "auto" == "{{inputs.parameters.flag_convert}}" ];then
+            ./appcd convert auto</tmp/Autoconfig.yaml> /convertbyte.txt;
+          else
+            ./appcd convert manual</tmp/Manualconfig.yaml> /convertbyte.txt;
+          fi;
+          cat /convertbyte.txt
+      outputs:
+        artifacts:
+        - name: convertbyte
+          path: /convertbyte.txt
+
+    - name: findappname
+      inputs:
+        artifacts:
+        - name: apps
+          path: /apps.txt
+      container:
+        image: rbxorkt12/appcd:1.0
+        command: [sh, -c]
+        args: ["cat /apps.txt;./appcd names < /apps.txt > /appnames.txt;"]
+      outputs:
+        parameters:
+        - name: appnames
+          valueFrom:
+            path: /appnames.txt
+    - name: apicaller
+      inputs:
+        artifacts:
+        - name: apps
+        parameters:
+        - name: name
+        - name: actionflag
+          #value: "{{create-update-delete}}"
+          #get the actionflag in parameter form
+      steps:
+      - - name: findmatch
+          template: findmatch
+          arguments:
+            artifacts:
+            - name: apps
+              from: "{{inputs.artifacts.apps}}"
+            parameters:
+            - name: name
+              value: "{{inputs.parameters.name}}"
+          when: "{{inputs.parameters.actionflag}} != delete"
+          #this template returns metadata
+      - - name: curl-action
+          template: curl-action-template
+          arguments:
+            parameters:
+            - name: curl-name
+              value: "{{inputs.parameters.name}}"
+            - name: curl-actionflag
+              value: "{{inputs.parameters.actionflag}}"
+      - - name: curl-validation
+          template:
+          arguments:
+            parameters:
+            - name: response
+              value: "{{steps.curl-action.outputs.result}}"
+
+    - name: curl-action-template
+      inputs:
+        parameters:
+        - name: curl-name
+        - name: curl-actionflag
+        steps:
+        - - name: curl-create
+            template: curl-body
+            arguments:
+              parameters:
+              - name: method
+                value: "POST"
+              - name: url
+                value: "{{workflow.parameters.clusterIPport}}/api/v1/applications"
+              artifacts:
+              - name: body
+                from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
+            when: "{{inputs.parameters.curl-actionflag}} == create"
+
+          - name: curl-update
+            template: curl-body
+            arguments:
+              parameters:
+              - name: method
+                value: "PUT"
+              - name: url
+                value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
+              artifacts:
+              - name: body
+                from: "{{steps.findmatch.outputs.artifacts.requestbody}}"
+            when: "{{inputs.parameters.curl-actionflag}} == update"
+
+          - name: curl-delete
+            template: curl-no-body
+            arguments:
+              parameters:
+              - name: method
+                value: "DELETE"
+              - name: url
+                value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
+            when: "{{inputs.parameters.curl-actionflag}} == delete"
+
+    - name: curl-with-body
+      inputs:
+        parameters:
+        - name: method
+        - name: url
+        - name: token
+          value: "{{workflow.parameters.token}}"
+        artifacts:
+        - name: body
+          path: /tmp/bodyjson
+      script:
+        image: tutum/curl
+        command: [bash]
+        source: |
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token
+          }}" -d @/tmp/bodyjson -k
+
+    - name: curl-without-body
+      inputs:
+        parameters:
+        - name: method
+        - name: url
+        - name: token
+          value: "{{workflow.parameters.token}}"
+      script:
+        image: tutum/curl
+        command: [bash]
+        source: |
+          curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token
+          }}" -k
+
+    - name: curl-validation-template
+      inputs:
+        parameters:
+        - name: response
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args: [cat "{{inputs.parameters.response}}" | grep rror]
