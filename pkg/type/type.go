@@ -11,7 +11,7 @@ type Item struct {
 
 type Metadata struct {
 	Name string `json:"name"`
-	Annotations Annotation `json:"annotation"`
+	Annotations Annotation `json:"labels"`
 }
 
 type Annotation struct {

@@ -111,12 +111,23 @@ func main(){
 				}
 				manuallist=append(manuallist,item)
 			}
-			if a== "Auto"{
-				json.MarshalIndent(autolist,"","   ")
-			}else if a=="Manual"{
-				json.MarshalIndent(manuallist,"","   ")
-			}
 		}
+		if a== "Auto"{
+			byte,err:=json.MarshalIndent(autolist,"","   ")
+                        if err!=nil {
+               	                log.Fatalln(err)
+                                os.Exit(23)
+                                }
+				fmt.Println(string(byte))
+			}else if a=="Manual"{
+				byte,err:=json.MarshalIndent(manuallist,"","   ")
+                                if err!=nil {
+                                        log.Fatalln(err)
+                                        os.Exit(23)
+                                }
+				fmt.Println(string(byte))
+			}
+		
 	case "diff":
 		before := os.Args[2]
 		after := os.Args[3]
@@ -177,6 +188,33 @@ func main(){
 		writeitems(create,"/diff/CREATE")
 		writeitems(delete,"/diff/DELETE")
 		writeitems(update,"/diff/UPDATE")
+
+	case "appstoparam":
+		var resultlist []map[string]string
+		applist,err:=ReadStdinAndUnmarshalApp()
+		if err!=nil {
+			log.Fatalln(err)
+			os.Exit(233)
+		}
+		for _,app := range applist{
+			result := make(map[string]string)
+			result["appcdoption"]=app.Meta.Annotations.AppCDoption
+			result["name"]=app.Meta.Name
+			result["project"]=app.Spec.Project
+			result["path"]=app.Spec.Source.Path
+			result["revision"]=app.Spec.Source.Revision
+			result["url"]=app.Spec.Source.Url
+			result["namespace"]=app.Spec.Dest.Namespace
+			result["server"]=app.Spec.Dest.Server
+			resultlist= append(resultlist,result )
+		}
+		byte,err:=json.MarshalIndent(resultlist,"","   ")
+		if err!=nil {
+			log.Fatalln(err)
+			os.Exit(233)
+		}
+		fmt.Println(string(byte))
+
 
 	default :
 		log.Println("That is not implemented")

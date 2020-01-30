@@ -10,12 +10,9 @@ func Appdiff(before []structtype.Item,after []structtype.Item)(create []structty
 		name := app.Meta.Name
 		for _,com := range after{
 			if name == com.Meta.Name {
-				if app.Spec.Source.Revision == com.Spec.Source.Revision{
-					flag =0
-					break
-				} else {
-					update = append(update,com)
-				}
+				flag =0 
+				update = append(update,com)
+			
 			}
 		}
 		if flag ==1 {

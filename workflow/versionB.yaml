@@ -177,7 +177,7 @@ spec:
                   value: "{{inputs.parameters.action}}"
                 - name: name
                   value: "{{inputs.parameters.name}}"
-            when: "{{inputs.parameters.action}} != delete"
+            when: "{{inputs.parameters.action}} != DELETE"
         - - name: curl-action
             template: curl-action-template
             arguments:
@@ -209,7 +209,7 @@ spec:
               artifacts:
                 - name: body
                   from: "{{inputs.artifacts.curl-body}}"
-            when: "{{inputs.parameters.curl-actionflag}} == create"
+            when: "{{inputs.parameters.curl-actionflag}} == CREATE"
           - name: curl-update
             template: curl-with-body
             arguments:
@@ -221,7 +221,7 @@ spec:
               artifacts:
                 - name: body
                   from: "{{inputs.artifacts.curl-body}}"
-            when: "{{inputs.parameters.curl-actionflag}} == update"
+            when: "{{inputs.parameters.curl-actionflag}} == UPDATE"
           - name: curl-delete
             template: curl-without-body
             arguments:
@@ -230,7 +230,7 @@ spec:
                   value: "DELETE"
                 - name: url
                   value: "{{workflow.parameters.clusterIPport}}/api/v1/applications/{{inputs.parameters.curl-name}}"
-            when: "{{inputs.parameters.curl-actionflag}} == delete"
+            when: "{{inputs.parameters.curl-actionflag}} == DELETE"
 
         - - name: curl-validation
             template: curl-validation-template
@@ -239,7 +239,7 @@ spec:
               - name: status-create
                 value: "{{steps.curl-create.status}}" 
               - name: status-update
-                value: "{{steps.curl-create.status}}"
+                value: "{{steps.curl-update.status}}"
               - name: status-delete
                 value: "{{steps.curl-delete.status}}"
               - name: response-create
@@ -264,7 +264,6 @@ spec:
         command: [bash]
         source: |
           curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -d @/tmp/bodyjson -k
-
     - name: curl-without-body
       inputs:
         parameters:
@@ -277,8 +276,6 @@ spec:
         command: [bash]
         source: |
           curl -sL -X "{{inputs.parameters.method}}" "https://{{inputs.parameters.url}}" -H "Authorization: Bearer {{inputs.parameters.token}}" -k
-
-
     - name: argocd-cred
       inputs:
         parameters:
@@ -287,7 +284,7 @@ spec:
           - name: argocdpassword
             value: "{{workflow.parameters.argopassword}}"
       container:
-        image: rbxorkt12/appcd:1.0
+        image: rbxorkt12/appcd:1.2
         command: [sh, -c]
         args: ["
         ./appcd argoinfo {{input.parameters.argocdid}} {{input.parameters.argocdpassword}} > /argoinfo;
@@ -298,7 +295,6 @@ spec:
           - name: argoinfo
             valueFrom: 
               path: /argoinfo
-
     - name: repo-download
       inputs:
         artifacts:
@@ -316,21 +312,18 @@ spec:
           limits: 
             cpu: 400m
             memory: 800Mi
-        args: ["
-        "]
+        args: [""]
       outputs:
         artifacts:
         - name: config
           path: /tmp
-
-
     - name: splitAutoandManualinServer
       inputs:
         artifacts:
           - name: notsplit
             path: /notsplit
       container:
-        image: rbxorkt12/appcd:1.0
+        image: rbxorkt12/appcd:1.2
         command: [sh, -c]
         args: ["
           cat /notsplit;
@@ -344,7 +337,6 @@ spec:
         artifacts:
           - name: currentapps
             path: /apps
-
     - name: diff
       inputs:
         parameters:
@@ -355,16 +347,22 @@ spec:
           - name: currentApps
             path: /current
       script:
-        image: rbxorkt12/appcd:1.0
+        image: rbxorkt12/appcd:1.2
         command: [bash]
         source: |
-          mkdir diff;
+          mkdir /diff;
           if [ "auto" == "{{inputs.parameters.flag}}" ];then
-            ./appcd diff '/convertbyte' '/current/Autocurrentapps'
+            ./appcd diff '/current/Autocurrentapps' '/convertbyte'
           else
-            ./appcd diff '/convertbyte' '/current/Manualcurrentapps'
+            ./appcd diff '/current/Manualcurrentapps' '/convertbyte'
           fi;
           ls -al /diff;
+          echo '-------------create'
+          cat /diff/CREATE;
+          echo '-------------delete'
+          cat /diff/DELETE;
+          echo '-------------update'
+          cat /diff/UPDATE;
       outputs:
         artifacts:
           - name: diffsrc
@@ -378,7 +376,7 @@ spec:
         - name: configbyte_lint
           path: /tmp
       script:
-        image: rbxorkt12/appcd:1.0
+        image: rbxorkt12/appcd:1.2
         command: [bash]
         source: |
           if [ "auto" == "{{inputs.parameters.flag_lint}}" ];then
@@ -387,7 +385,6 @@ spec:
             ./appcd lint</tmp/Manualconfig.yaml;
           fi;
         
-
     - name: converttoApps
       inputs:
         artifacts:
@@ -396,7 +393,7 @@ spec:
         parameters:
           - name: flag_convert
       script:
-        image: rbxorkt12/appcd:1.0
+        image: rbxorkt12/appcd:1.2
         command: [bash]
         source: |
           cat /tmp/Autoconfig.yaml
@@ -420,17 +417,16 @@ spec:
         parameters:
           - name: action
       script:
-        image: rbxorkt12/appcd:1.0
+        image: rbxorkt12/appcd:1.2
         command: [bash]
         source: |
-          ls -al /diff
           if [ "CREATE" == "{{inputs.parameters.action}}" ];then
             ./appcd names < /diff/CREATE > /appnames.txt;
-          if [ "DELETE" == "{{inputs.parameters.action}}" ];then
+          elif [ "DELETE" == "{{inputs.parameters.action}}" ];then
             ./appcd names < /diff/DELETE > /appnames.txt;
-          if [ "CREATE" == "{{inputs.parameters.action}}" ];then
-            ./appcd names < /diff/UPDATE > /appnames.txt;
-          cat appnames.txt;
+          elif [ "UPDATE" == "{{inputs.parameters.action}}" ];then
+            ./appcd names < /diff/UPDATE > /appnames.txt; fi;
+          cat /appnames.txt;
       outputs:
         parameters:
           - name: appnames
@@ -446,16 +442,17 @@ spec:
           - name: name
           - name: action
       script:
-        image: rbxorkt12/appcd:1.0
+        image: rbxorkt12/appcd:1.2
         command: [bash]
         source: |
           ls -al /diff
           if [ "CREATE" == "{{inputs.parameters.action}}" ];then
             ./appcd find {{inputs.parameters.name}} < /diff/CREATE > /requestbody.json;
-          if [ "DELETE" == "{{inputs.parameters.action}}" ];then
+          elif [ "DELETE" == "{{inputs.parameters.action}}" ];then
             ./appcd find {{inputs.parameters.name}} < /diff/DELETE > /requestbody.json;
-          if [ "UPDATE" == "{{inputs.parameters.action}}" ];then
+          elif [ "UPDATE" == "{{inputs.parameters.action}}" ];then
             ./appcd find {{inputs.parameters.name}} < /diff/UPDATE > /requestbody.json;
+          fi;
           cat /requestbody.json
       outputs:
         artifacts:
@@ -493,28 +490,9 @@ spec:
         command: [bash]
         source: |
           if [ "Succeeded" == "{{inputs.parameters.status-create}}" ];then
-            echo {{inputs.parameters.response-create}} | grep rror
-          else if [ "Succeeded" == "{{inputs.parameters.status-update}}" ];then
-            echo {{inputs.parameters.response-update}} | grep rror
-          else if [ "Succeeded" == "{{inputs.parameters.status-delete}}" ];then
-            echo {{inputs.parameters.response-delete}} | grep rror
+            echo {{inputs.parameters.response-create}}
+          elif [ "Succeeded" == "{{inputs.parameters.status-update}}" ];then
+            echo {{inputs.parameters.response-update}}
+          elif [ "Succeeded" == "{{inputs.parameters.status-delete}}" ];then
+            echo {{inputs.parameters.response-delete}}
           fi;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
